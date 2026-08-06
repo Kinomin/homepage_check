@@ -55,3 +55,91 @@
 ## デザインの引き継ぎ
 
 `prototype.html` の配色・余白・罫線の太さ・数値の等幅表記をそのままデザインシステムの基準にする。見出しは Shippori Mincho、本文は Zen Kaku Gothic New、数値は IBM Plex Mono。淡色ベースで、分析ツールらしい密度を保つ（詳細は `handoff.md` 末尾）。
+
+---
+
+# 実装（Phase 1）
+
+上記の資料に基づく実装をこのリポジトリに置いている。
+
+## 起動
+
+```bash
+npm install
+cp .env.example .env.local   # 未設定でもデモデータで起動する
+npm run dev                  # http://localhost:3000
+```
+
+`.env.local` を設定しない場合は、`prototype.html` 由来のサンプルデータで動作する。
+その状態では画面上部に「サンプルデータを表示しています」と明示される。
+
+| コマンド | 内容 |
+|---|---|
+| `npm run dev` / `npm run build` | 開発サーバ／本番ビルド |
+| `npm test` | 集計ロジック・クロール・判定パイプラインのテスト |
+| `npm run typecheck` / `npm run lint` | 型検査／Lint |
+| `npm run scan -- --url https://example.ed.jp --name 学校名 --role self` | 1校の走査と判定を実行 |
+| `npm run generate:demo` | `prototype.html` からデモデータを再生成 |
+| `npx tsx scripts/generate-criteria-seed.ts` | 31項目のシード SQL を再生成 |
+
+## Supabase の初期化
+
+```bash
+psql "$DATABASE_URL" -f supabase/migrations/0001_init.sql
+psql "$DATABASE_URL" -f supabase/migrations/0002_rls.sql
+psql "$DATABASE_URL" -f supabase/seed/criteria.sql
+```
+
+`0002_rls.sql` が組織単位の分離（7章）を実装している。走査・判定の書き込みは
+service_role キーを持つサーバ側バッチのみ。
+
+## ディレクトリ
+
+```
+src/lib/types.ts              判定レベル・優先度・出典などの enum（唯一の定義元）
+src/lib/screens.ts            画面名称の唯一の定義元（10章-3 対策）
+src/lib/analysis/criteria.ts  調査項目31件（DB シードもここから生成）
+src/lib/analysis/summary.ts   01・02 の集計ロジック（unknown の除外規則を含む）
+src/lib/crawl/                robots.txt 解釈・HTML 抽出・クロール本体
+src/lib/judge/                候補ページ抽出 → LLM 判定 → 根拠保存
+src/lib/data/                 画面へのデータ供給（Supabase / デモの切替）
+src/app/                      01 サマリー・02 欠落マップ・03 導線・06 アクション・07 レポート
+supabase/                     マイグレーションとシード
+tests/                        集計・クロール・判定パイプラインのテスト
+```
+
+## 5つの絶対制約をどこで守っているか
+
+| 制約 | 実装箇所 |
+|---|---|
+| 計測と解釈を分離する | `analysis/summary.ts` は機械判定のみを扱い、LLM を呼ばない。LLM 呼び出しは `judge/` に閉じている |
+| 語句一致で判定しない | `judge/candidates.ts` は候補の絞り込みだけを行い、水準は決めない。`aliases` は候補抽出のヒントとして渡し、プロンプトにも「一致条件ではない」と明記している |
+| 比較校を採点しない | `judge/prompt.ts` の `COMPETITOR_SYSTEM_PROMPT` が評価語・比較・改善提案を禁じる。02 の根拠パネルも比較校では記録文のみを出す |
+| 走査失敗と欠落を区別する | 判定不能はすべて `unknown`（`judge/judge.ts`）。集計では `unknown` と `n/a` を欠落から除外する（`analysis/summary.ts`、テストで固定） |
+| 所要時間・期限を生成しない | `types.ts` の `Action` に期限・工数のフィールドを持たない。DB の `actions` にも列がない |
+
+## 要確定事項（9章）に対して置いた既定値
+
+コードを書き進めるために、handoff.md の推奨に沿って以下を既定にした。**発注者との合意後に変更しうる。**
+
+- **A 判定コスト** — 候補ページ抽出で LLM に渡す本文を1ページ2,500字までに制限。共通のシステムプロンプトをプロンプトキャッシュ対象にし、`JUDGE_EFFORT` の既定を `low` にしている。自校と比較校の頻度差（週次／月次）はスケジューラ未実装のため未設定。さらに絞る場合は Message Batches API（50%割引）に載せ替えられるよう、1判定=1リクエストの形にしてある
+- **B 比較校の走査範囲** — 推奨どおり、比較校は判定に必要なページのみ（既定60ページ、自校は200ページ）。全体集計値は自校のみ
+- **C Playwright の要否** — Cheerio のみで実装。JS レンダリングが必要なページのフォールバックは未実装（`crawl/crawler.ts` に差し込み口を残している）
+- **D 順位計測** — Phase 1 では実装せず、04 は Phase 2 の説明のみを表示
+- **E 判定の再現性** — 推奨どおり、前回の判定結果をプロンプトに渡し、変更する場合は `change_reason` に理由を書かせる
+
+## プロトタイプとの差分
+
+- **06 の照会欄** — 入力欄は置かず、想定される確認事項の表示にとどめた（Phase 2、8章）。押せるのに反応しない要素を作らないため（10章-5）
+- **04・05** — Phase 2 である理由を説明する画面に置き換えた
+- **07 の出力オプション** — 「A4横1枚に収める」は未実装のため置いていない。PDF 出力はブラウザの印刷（印刷用スタイル付き）で行う
+
+## 10章のQA記録への対応
+
+| プロトタイプで起きたこと | 実装側の対策 |
+|---|---|
+| 参照先を消した後、参照元が残った | コンポーネント単位に状態を閉じた。共有する対応済み状態は `useActionStatus` 1箇所に集約 |
+| 分類ラベルの変更漏れ | `types.ts` の Union 型と Postgres の enum で定義。06 のフィルタ選択肢は `ACTION_SOURCES` から生成し、データに存在する出典のみ表示する |
+| 画面名称の取り残し | `screens.ts` に一元化。サイドバー・ボタン・レポート見出し・アクション出典ラベルはすべてここを参照 |
+| クラスは書いたがスタイルがない | `prototype.html` の CSS をそのままデザインシステムとして移植。コンポーネント固有のスタイルを足す場合は CSS Modules を併置する |
+| 見た目だけでロジック未接続 | 対応済みトグルは `useActionStatus` → `PATCH /api/actions/[id]` に接続済み。01 と 06 で状態が共有されることを確認している |
