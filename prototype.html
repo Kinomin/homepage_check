@@ -1,0 +1,1393 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>School Insight AI ｜ 入試広報分析</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#2E3238; --ink-2:#5A626C; --mute:#8A929B;
+  --bg:#F3F5F6; --surface:#FFFFFF; --surface-2:#F9FAFB; --surface-3:#F1F4F6;
+  --line:#E2E6E9; --line-2:#CBD2D7;
+  --blue:#5C7FA8; --blue-deep:#3F5F87; --blue-tint:#ECF2F7;
+  --rose:#B4707E; --rose-tint:#FAF0F1;
+  --sage:#6D9A83; --sage-tint:#EDF4F0;
+  --amber:#BE9A55; --amber-tint:#FAF4E7;
+  --mincho:"Shippori Mincho",serif;
+  --gothic:"Zen Kaku Gothic New",sans-serif;
+  --mono:"IBM Plex Mono",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:var(--gothic);background:var(--bg);color:var(--ink);font-size:13.5px;line-height:1.7;font-feature-settings:"palt" 1;-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit}
+button{background:none;border:none;cursor:pointer}
+:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* ===== シェル ===== */
+.shell{display:grid;grid-template-columns:222px 1fr;min-height:100vh}
+.side{background:var(--surface);border-right:1px solid var(--line);padding:18px 0 24px;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.brand{padding:0 18px 16px;border-bottom:1px solid var(--line)}
+.brand .logo{font-family:var(--mincho);font-weight:700;font-size:17px;letter-spacing:.03em;color:var(--blue-deep)}
+.brand .tag{font-family:var(--mono);font-size:9.5px;color:var(--mute);letter-spacing:.1em;margin-top:2px}
+.school{padding:12px 18px;border-bottom:1px solid var(--line)}
+.school .lbl{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--mute)}
+.school .nm{font-family:var(--mincho);font-size:14px;line-height:1.5}
+.nav{padding:10px 8px;flex:1;display:flex;flex-direction:column;gap:1px}
+.nav button{display:flex;align-items:center;gap:9px;width:100%;padding:8px 11px;border-radius:4px;font-size:13px;color:var(--ink-2);text-align:left;transition:background .12s,color .12s}
+.nav button .no{font-family:var(--mono);font-size:9.5px;color:var(--mute);width:15px;flex:none}
+.nav button:hover{background:var(--surface-2);color:var(--ink)}
+.nav button[aria-selected="true"]{background:var(--blue-tint);color:var(--blue-deep);font-weight:700}
+.nav button[aria-selected="true"] .no{color:var(--blue)}
+.nav .divider{height:1px;background:var(--line);margin:8px 11px}
+.side-foot{padding:12px 18px 0;border-top:1px solid var(--line);font-family:var(--mono);font-size:9.5px;color:var(--mute);line-height:1.9}
+.side-foot b{color:var(--ink-2);font-weight:500}
+
+/* ===== ヘッダ ===== */
+.main{min-width:0;padding:0 0 64px}
+.topbar{background:var(--bg);border-bottom:1px solid var(--line);padding:14px 28px 0;position:sticky;top:0;z-index:20}
+.code{font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;color:var(--mute)}
+h1{font-family:var(--mincho);font-size:21px;font-weight:700;letter-spacing:.02em;line-height:1.4}
+.sub{font-size:11.5px;color:var(--mute)}
+.statstrip{display:flex;flex-wrap:wrap;gap:0;margin-top:12px;border:1px solid var(--line);border-bottom:none;border-radius:4px 4px 0 0;overflow:hidden;background:var(--surface)}
+.stat{flex:1;min-width:104px;padding:7px 12px;border-right:1px solid var(--line)}
+.stat:last-child{border-right:none}
+.stat .k{font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;color:var(--mute)}
+.stat .v{font-family:var(--mono);font-size:14px;font-variant-numeric:tabular-nums;line-height:1.4}
+.stat .v em{font-style:normal;font-size:10px;color:var(--mute);margin-left:2px}
+.wrap{padding:20px 28px 0;max-width:1200px}
+.panel{display:none}
+.panel.on{display:block;animation:rise .22s ease both}
+@keyframes rise{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ===== 共通 ===== */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:5px}
+.card-h{padding:11px 16px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.card-h h2{font-family:var(--mincho);font-size:15px;font-weight:700}
+.card-h h2 .id{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;color:var(--mute);margin-right:8px;font-weight:400}
+.card-h .note{font-size:11px;color:var(--mute)}
+.card-b{padding:16px}
+.eyebrow{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:var(--mute);margin-bottom:7px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.stack{display:flex;flex-direction:column;gap:14px}
+.tag{display:inline-block;font-family:var(--mono);font-size:9.5px;font-weight:500;letter-spacing:.06em;padding:1px 7px;border-radius:2px;line-height:1.8;white-space:nowrap}
+.t-gap{background:var(--rose-tint);color:var(--rose)}
+.t-ok{background:var(--sage-tint);color:var(--sage)}
+.t-warn{background:var(--amber-tint);color:var(--amber)}
+.t-neu{background:var(--surface-3);color:var(--ink-2)}
+.btn{background:var(--blue);color:#fff;border-radius:4px;padding:7px 15px;font-size:12.5px;font-weight:700;transition:background .12s}
+.btn:hover{background:var(--blue-deep)}
+.btn.ghost{background:var(--surface);color:var(--ink-2);border:1px solid var(--line-2)}
+.btn.ghost:hover{background:var(--surface-2);color:var(--ink)}
+.btn.ghost[aria-pressed="true"]{background:var(--blue-tint);color:var(--blue-deep);border-color:#B9CCDF;font-weight:700}
+.btnrow{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.btnrow .lb{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;color:var(--mute);margin-right:4px}
+
+/* データ表 */
+table.dt{border-collapse:collapse;width:100%;font-size:12.5px}
+table.dt th,table.dt td{border-bottom:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+table.dt thead th{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;color:var(--mute);font-weight:500;border-bottom:1px solid var(--line-2);white-space:nowrap;background:var(--surface-2)}
+table.dt td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+table.dt tbody tr:hover{background:var(--surface-2)}
+table.dt .sub2{display:block;font-size:10.5px;color:var(--mute)}
+
+/* ===== 01 ===== */
+.hero{background:var(--surface);border:1px solid var(--line);border-radius:5px;padding:20px 24px;position:relative;overflow:hidden}
+.hero::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--rose);opacity:.6}
+.hero .lead{font-size:12.5px;color:var(--ink-2)}
+.hero .big{display:flex;align-items:baseline;gap:11px;margin:1px 0}
+.hero .num{font-family:var(--mono);font-size:52px;line-height:1.15;letter-spacing:-.03em;color:var(--rose)}
+.hero .unit{font-family:var(--mincho);font-size:18px;font-weight:700}
+.hero .of{margin-left:auto;font-family:var(--mono);font-size:9.5px;color:var(--mute);text-align:right;line-height:1.8}
+.hero ol{list-style:none;margin-top:12px;border-top:1px solid var(--line)}
+.hero ol li{display:flex;gap:12px;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--line)}
+.hero ol li:last-child{border-bottom:none}
+.hero ol .n{font-family:var(--mono);font-size:10.5px;color:var(--rose);flex:none;width:17px}
+.hero ol .it{font-family:var(--mincho);font-size:14.5px;font-weight:700}
+.hero ol .st{margin-left:auto;font-size:10.5px;color:var(--mute);white-space:nowrap}
+.slist li{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);list-style:none;font-size:12.5px;align-items:baseline}
+.slist li:last-child{border-bottom:none}
+.slist .mk{font-family:var(--mono);color:var(--sage);flex:none}
+.todo{display:flex;gap:11px;padding:10px 0;border-bottom:1px solid var(--line);align-items:flex-start}
+.todo:last-child{border-bottom:none}
+.todo input{margin-top:4px;accent-color:var(--blue);width:14px;height:14px;flex:none}
+.todo .t{font-size:12.5px;font-weight:500}
+.todo .d{font-size:11px;color:var(--mute);margin-top:1px}
+.todo .when{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--rose);white-space:nowrap;padding-top:2px;flex:none}
+.todo.done{opacity:.55}
+.todo.done .t{text-decoration:line-through;color:var(--mute)}
+.todo.done .when{color:var(--sage)}
+.act-status{flex:none;display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;letter-spacing:.04em;color:var(--mute);border:1px solid var(--line-2);border-radius:12px;padding:3px 9px 3px 7px;transition:.12s;white-space:nowrap}
+.act-status:hover{background:var(--surface-2)}
+.act-status input{accent-color:var(--sage);width:12px;height:12px}
+.act-status.done{color:var(--sage);border-color:#BFDACE;background:var(--sage-tint)}
+.act.done{opacity:.6}
+.act.done .act-t{text-decoration:line-through}
+.diff{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:12px}
+.diff:last-child{border-bottom:none}
+.diff .dt2{font-family:var(--mono);font-size:10.5px;color:var(--mute);flex:none;width:42px}
+.diff .sch{font-weight:700;flex:none;width:82px}
+
+/* ===== 欠落マップ ===== */
+.gapwrap{overflow-x:auto}
+table.gap{border-collapse:collapse;width:100%;min-width:720px}
+table.gap th,table.gap td{border-bottom:1px solid var(--line);text-align:center}
+table.gap thead th{padding:8px 5px;font-size:11px;font-weight:700;border-bottom:1px solid var(--line-2);vertical-align:bottom;color:var(--ink-2);background:var(--surface-2)}
+table.gap thead th.mine{background:var(--blue-tint);color:var(--blue-deep)}
+table.gap thead th small{display:block;font-family:var(--mono);font-size:8.5px;color:var(--mute);font-weight:400;letter-spacing:.1em}
+table.gap th.item{text-align:left;padding-left:11px;font-weight:500;font-size:12px;width:34%;color:var(--ink)}
+table.gap th.whoh{width:80px;font-size:10px}
+table.gap tbody td{padding:0}
+table.gap tbody td.mine{background:#F5F9FC}
+table.gap tbody tr.hide{display:none}
+table.gap tbody tr.flag th.item{background:var(--rose-tint)}
+table.gap tbody tr.catrow th{text-align:left;padding:9px 11px 5px;font-size:11px;font-weight:700;color:var(--blue-deep);background:var(--surface-2);border-bottom:1px solid var(--line-2);letter-spacing:.04em}
+table.gap tbody tr.catrow th .ck{font-family:var(--mono);font-size:9.5px;color:var(--mute);margin-right:8px;letter-spacing:.14em;font-weight:400}
+table.gap tbody tr.catrow.hide{display:none}
+.mk-cell{width:100%;height:31px;font-family:var(--mono);font-size:13.5px;color:var(--ink-2);display:flex;align-items:center;justify-content:center;transition:background .1s}
+.mk-cell:hover{background:var(--blue-tint)}
+.mk-cell.none{color:var(--rose)}
+.mk-cell.thin{color:var(--amber)}
+.mk-cell.full{color:var(--sage)}
+.mk-cell[aria-pressed="true"]{background:var(--blue);color:#fff;border-radius:3px}
+.rowlbl{display:flex;align-items:center;gap:7px}
+.rid{font-family:var(--mono);font-size:9px;color:var(--mute);flex:none;width:20px}
+.who{font-size:9.5px;color:var(--mute);line-height:1.5}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:10.5px;color:var(--mute);padding-top:11px}
+.legend b{font-family:var(--mono);font-size:12.5px;margin-right:3px}
+.evidence{margin-top:14px;border:1px solid var(--line);border-left:3px solid var(--blue);border-radius:4px;background:var(--surface-2);padding:13px 15px}
+.evidence .ttl{font-family:var(--mincho);font-size:13.5px;font-weight:700;margin-bottom:4px}
+.evidence p{font-size:12px;line-height:1.85;color:var(--ink-2)}
+.evidence .src{font-family:var(--mono);font-size:10px;color:var(--blue-deep);word-break:break-all;margin-top:7px;padding-top:7px;border-top:1px solid var(--line)}
+
+/* ===== 導線 ===== */
+.paths{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:5px;overflow:hidden}
+.path{padding:16px}
+.path+.path{border-left:1px solid var(--line)}
+.path.mine{background:#FDF8F9}
+.path .ph{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px;gap:8px}
+.path .who2{font-family:var(--mincho);font-size:13.5px;font-weight:700}
+.path .cnt{font-family:var(--mono);font-size:12.5px}
+.path.mine .cnt{color:var(--rose)}
+.path .cnt.good{color:var(--sage)}
+.step{display:flex;gap:9px;align-items:flex-start;position:relative;padding-bottom:12px}
+.step:last-child{padding-bottom:0}
+.step .dot{width:19px;height:19px;border-radius:50%;border:1.5px solid var(--line-2);background:var(--surface);flex:none;font-family:var(--mono);font-size:9.5px;display:flex;align-items:center;justify-content:center;color:var(--ink-2);z-index:1}
+.step .dot.end{background:var(--sage);border-color:var(--sage);color:#fff}
+.step:not(:last-child)::before{content:"";position:absolute;left:9px;top:19px;bottom:0;width:1.5px;background:var(--line-2)}
+.step .sl{font-size:12px;line-height:1.6}
+.step .sl small{display:block;color:var(--mute);font-size:10.5px}
+.step.pain .dot{border-color:var(--rose);color:var(--rose)}
+.step.pain .sl small{color:var(--rose)}
+.meas{display:flex;flex-direction:column;gap:12px}
+.meas-row{display:grid;grid-template-columns:1fr 94px;gap:12px;align-items:center}
+.meas-name{font-size:12.5px}
+.meas-name small{display:block;color:var(--mute);font-size:10.5px;line-height:1.5}
+.bar{height:5px;background:#E9EDEF;border-radius:2px;position:relative;margin-top:6px}
+.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:2px;display:block}
+.bar .mine{background:var(--rose);opacity:.8}
+.bar .mine.good{background:var(--sage);opacity:.8}
+.bar .avg{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--blue);left:auto;border-radius:0}
+.meas-val{text-align:right;font-family:var(--mono);font-size:15px;font-variant-numeric:tabular-nums}
+.meas-val small{display:block;font-family:var(--gothic);font-size:9.5px;color:var(--mute)}
+
+/* ===== 検索 ===== */
+.serp{background:var(--surface-2);border:1px solid var(--line);border-radius:5px;padding:16px 18px}
+.serp+.serp{margin-top:12px}
+.serp .lbl2{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;color:var(--mute);margin-bottom:9px}
+.serp .url{font-family:var(--mono);font-size:11px;color:var(--ink-2)}
+.serp .ttl2{font-size:16px;color:#1B4FA8;line-height:1.5;margin:1px 0 3px}
+.serp .desc{font-size:12px;color:var(--ink-2);line-height:1.65}
+.serp .desc.miss{color:var(--rose)}
+.rich{margin-top:10px;border-top:1px solid var(--line);padding-top:9px;display:flex;gap:10px;flex-wrap:wrap}
+.rich .ev2{border:1px solid var(--line-2);border-radius:4px;background:var(--surface);padding:6px 11px;font-size:11.5px;line-height:1.5}
+.rich .ev2 b{font-family:var(--mono);display:block;font-size:10.5px;color:var(--blue-deep)}
+.chk{display:grid;grid-template-columns:20px 1fr auto;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);align-items:start}
+.chk:last-child{border-bottom:none}
+.chk .st2{font-family:var(--mono);font-size:12px;text-align:center;line-height:1.6}
+.chk .st2.ng{color:var(--rose)}
+.chk .st2.wn{color:var(--amber)}
+.chk .st2.ok{color:var(--sage)}
+.chk .nm2{font-size:12.5px}
+.chk .nm2 small{display:block;font-size:10.5px;color:var(--mute);line-height:1.6}
+.chk .rt{font-family:var(--mono);font-size:11px;color:var(--ink-2);white-space:nowrap;text-align:right}
+
+/* ===== ペルソナ ===== */
+.psel{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.pgroup .glbl{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--mute);margin-bottom:5px}
+.seg{display:flex;border:1px solid var(--line-2);border-radius:4px;overflow:hidden;background:var(--surface)}
+.seg button{padding:6px 15px;font-size:12px;color:var(--ink-2);transition:.12s;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:none}
+.seg button[aria-pressed="true"]{background:var(--blue);color:#fff;font-weight:700}
+.pcard{background:var(--blue-tint);border-radius:5px;padding:16px 20px;margin-bottom:16px}
+.pcard .pmeta{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;color:var(--blue-deep);margin-bottom:5px}
+.quote{font-family:var(--mincho);font-size:16px;line-height:2;color:var(--ink)}
+.hyp{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:12.5px;align-items:flex-start}
+.hyp:last-child{border-bottom:none}
+.hyp .b{flex:none;margin-top:3px}
+.hyp .src{font-family:var(--mono);font-size:10px;color:var(--blue-deep);display:block;margin-top:2px}
+.caution{background:var(--amber-tint);border:1px solid #EDE0C4;border-radius:5px;padding:12px 15px;font-size:11.5px;line-height:1.8;margin-top:16px;color:var(--ink-2)}
+.caution b{color:var(--amber)}
+.qs{background:var(--surface);border:1px solid var(--line-2);border-radius:4px;padding:13px 15px;margin-top:11px;display:none}
+.qs.on{display:block;animation:rise .18s ease both}
+.qs h5{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;color:var(--mute);margin-bottom:7px}
+.qs li{font-size:12px;margin-bottom:6px;list-style:none;padding-left:15px;text-indent:-15px;color:var(--ink)}
+.qs li b{font-family:var(--mono);color:var(--blue-deep);margin-right:5px}
+
+/* ===== アクション ===== */
+.ghead{display:flex;align-items:baseline;gap:10px;margin:22px 0 9px;padding-bottom:6px;border-bottom:1px solid var(--line-2)}
+.ghead:first-child{margin-top:0}
+.ghead .gt{font-family:var(--mincho);font-size:14.5px;font-weight:700}
+.ghead .gd{font-size:11px;color:var(--mute)}
+.ghead .gc{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--mute)}
+.act{border:1px solid var(--line);border-radius:5px;background:var(--surface);margin-bottom:8px;overflow:hidden}
+.act-h{display:grid;grid-template-columns:52px 1fr auto;gap:12px;align-items:center;padding:12px 16px;width:100%;text-align:left}
+.act-h:hover{background:var(--surface-2)}
+.aid{font-family:var(--mono);font-size:10px;color:var(--mute);letter-spacing:.06em}
+.act-t{font-size:14px;font-weight:700}
+.act-t small{display:block;font-weight:400;font-size:11px;color:var(--mute);margin-top:1px}
+.act-tags{display:flex;gap:5px;align-items:center}
+.chev{font-family:var(--mono);color:var(--mute);font-size:10px;transition:transform .18s;margin-left:6px}
+.act[data-open="1"] .chev{transform:rotate(90deg)}
+.act-b{display:none;padding:0 16px 16px 80px;font-size:12.5px}
+.act[data-open="1"] .act-b{display:block;animation:rise .18s ease both}
+.act-b h4{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;color:var(--mute);margin:14px 0 5px}
+.act-b p,.act-b ul{color:var(--ink-2)}
+.act-b ul{padding-left:17px}
+.act-b li{margin-bottom:2px}
+.copy{background:var(--surface-2);border:1px dashed var(--line-2);border-radius:4px;padding:11px 13px;font-family:var(--mincho);font-size:13px;line-height:1.9;color:var(--ink)}
+.meta{display:flex;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:10.5px;color:var(--mute);margin-top:11px;padding-top:9px;border-top:1px solid var(--line)}
+.meta b{color:var(--ink);font-weight:500}
+.ask{margin-top:14px;border:1px solid var(--line-2);border-radius:4px;overflow:hidden}
+.ask .ah{background:var(--surface-3);padding:7px 13px;font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;color:var(--ink-2);border-bottom:1px solid var(--line)}
+.ask .ab{padding:12px 13px}
+.chips{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:9px}
+.chip{background:var(--surface);border:1px solid var(--line-2);color:var(--ink-2);border-radius:3px;padding:4px 10px;font-size:11px;transition:.12s}
+.chip:hover{background:var(--surface-2);border-color:var(--blue);color:var(--blue-deep)}
+.askbox{display:flex;gap:6px}
+.askbox input{flex:1;border:1px solid var(--line-2);background:var(--surface);border-radius:3px;padding:7px 11px;font-size:12px}
+.askbox input::placeholder{color:var(--mute)}
+.answer{display:none;background:var(--surface-2);border:1px solid var(--line);border-radius:3px;padding:12px 14px;margin-top:9px;font-size:12px;line-height:1.9;color:var(--ink-2)}
+.answer.on{display:block;animation:rise .18s ease both}
+.answer .qline{font-size:11.5px;color:var(--ink);font-weight:700;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.answer .foot{font-size:10px;color:var(--mute);margin-top:8px;padding-top:7px;border-top:1px solid var(--line);font-family:var(--mono);line-height:1.7}
+
+/* ===== レポート ===== */
+.optbar{background:var(--surface);border:1px solid var(--line);border-radius:5px;padding:12px 16px;margin-bottom:14px;display:flex;gap:24px;flex-wrap:wrap;align-items:flex-end}
+.optgrp .glbl{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--mute);margin-bottom:5px}
+.checks{display:flex;gap:12px;flex-wrap:wrap}
+.checks label{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--ink-2);cursor:pointer}
+.checks input{accent-color:var(--blue);width:13px;height:13px}
+.sheet{background:var(--surface);border:1px solid var(--line-2);border-radius:3px;padding:32px 36px;box-shadow:0 1px 8px rgba(46,50,56,.05)}
+.sheet-h{border-bottom:1.5px solid var(--blue);padding-bottom:9px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.sheet-h .t{font-family:var(--mincho);font-size:17px;font-weight:700}
+.sheet-h .d{font-family:var(--mono);font-size:10px;color:var(--mute);text-align:right;line-height:1.7}
+.sheet section.blk{margin-bottom:20px}
+.sheet section.blk.off{display:none}
+.sheet h3{font-family:var(--mincho);font-size:13.5px;margin-bottom:7px;padding-left:8px;border-left:3px solid var(--rose)}
+.sheet table{border-collapse:collapse;width:100%;font-size:12px}
+.sheet th,.sheet td{border:1px solid var(--line);padding:5px 8px;text-align:left}
+.sheet th{background:var(--surface-2);font-weight:700;white-space:nowrap;color:var(--ink-2)}
+.sheet .conf{margin-top:4px;padding-top:9px;border-top:1px solid var(--line);font-size:10px;color:var(--mute);line-height:1.8}
+.demo-note{background:var(--blue-tint);border:1px solid #D3E0EC;border-radius:4px;padding:8px 13px;font-size:11px;color:var(--blue-deep);margin-bottom:16px;line-height:1.8}
+
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr}
+  .side{position:static;height:auto}
+  .nav{flex-direction:row;flex-wrap:wrap}
+  .nav button{width:auto}
+  .nav .divider,.side-foot{display:none}
+  .wrap,.topbar{padding-left:14px;padding-right:14px}
+  .grid2,.paths{grid-template-columns:1fr}
+  .path+.path{border-left:none;border-top:1px solid var(--line)}
+  .act-b{padding-left:16px}
+  .sheet{padding:18px}
+  .statstrip{display:none}
+  .hero .num{font-size:42px}
+  .hero .of{margin-left:0;text-align:left;width:100%}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<aside class="side">
+  <div class="brand">
+    <div class="logo">School Insight AI</div>
+    <div class="tag">ADMISSIONS SITE ANALYTICS</div>
+  </div>
+  <div class="school">
+    <div class="lbl">TARGET</div>
+    <div class="nm">翠陵ヶ丘中学校・高等学校</div>
+  </div>
+  <nav class="nav" role="tablist">
+    <button role="tab" aria-selected="true" data-p="home"><span class="no">01</span>サマリー</button>
+    <button role="tab" aria-selected="false" data-p="gap"><span class="no">02</span>欠落マップ</button>
+    <button role="tab" aria-selected="false" data-p="meas"><span class="no">03</span>導線の実測</button>
+    <button role="tab" aria-selected="false" data-p="seo"><span class="no">04</span>発見のされ方</button>
+    <button role="tab" aria-selected="false" data-p="persona"><span class="no">05</span>ペルソナ仮説</button>
+    <button role="tab" aria-selected="false" data-p="act"><span class="no">06</span>改善アクション</button>
+    <div class="divider"></div>
+    <button role="tab" aria-selected="false" data-p="sheet"><span class="no">07</span>レポート出力</button>
+  </nav>
+  <div class="side-foot">
+    LAST SCAN　<b>2026-08-03 06:00</b><br>
+    NEXT SCAN　<b>2026-08-10 06:00</b><br>
+    CRAWL DEPTH　<b>4</b>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <div class="code" id="code">01 ／ SUMMARY</div>
+    <h1 id="ttl">診断サマリー</h1>
+    <div class="sub" id="sub">2026年8月3日 実施 ／ 比較対象4校 ／ 情報31項目</div>
+    <div class="statstrip">
+      <div class="stat"><div class="k">PAGES</div><div class="v">128</div></div>
+      <div class="stat"><div class="k">INDEXED</div><div class="v">94<em>/128</em></div></div>
+      <div class="stat"><div class="k">IMAGES</div><div class="v">186</div></div>
+      <div class="stat"><div class="k">PDF ONLY</div><div class="v">12</div></div>
+      <div class="stat"><div class="k">UPDATES 90D</div><div class="v">12</div></div>
+      <div class="stat"><div class="k">CATEGORIES</div><div class="v">0</div></div>
+      <div class="stat"><div class="k">MOBILE LCP</div><div class="v">4.2<em>s</em></div></div>
+      <div class="stat"><div class="k">COMPARED</div><div class="v">4<em>校</em></div></div>
+    </div>
+  </div>
+
+  <div class="wrap">
+  <div class="demo-note">これはモックです。学校名・数値・分析結果はすべて架空のサンプルデータです。</div>
+
+  <!-- 01 -->
+  <section class="panel on" id="p-home">
+    <div class="stack">
+      <div class="hero">
+        <div class="lead">比較4校すべてが公開していて、本校のサイトにない情報</div>
+        <div class="big"><span class="num" id="absN">0</span><span class="unit">件</span>
+          <span class="of">調査31項目中<br>2026-08-03 時点</span></div>
+        <ol id="absList"></ol>
+        <div style="margin-top:14px"><button class="btn" data-goto="gap">欠落マップで根拠を見る</button></div>
+      </div>
+      <div class="grid2">
+        <div class="card">
+          <div class="card-h"><h2><span class="id">SM-01</span>本校が比較校より整っている情報</h2></div>
+          <div class="card-b"><ul class="slist" id="strongList"></ul></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h2><span class="id">SM-02</span>比較校の更新記録</h2><span class="note">公開ページの差分のみ</span></div>
+          <div class="card-b">
+            <div class="diff"><span class="dt2">8/02</span><span class="sch">白鷺学園</span><span>「探究発表会レポート」を公開（写真14枚）</span></div>
+            <div class="diff"><span class="dt2">7/31</span><span class="sch">東雲台</span><span>入試要項2027を公開。昨年の本校より <b>23日</b> 早い</span></div>
+            <div class="diff"><span class="dt2">7/28</span><span class="sch">清和国際</span><span>トップページを刷新。動画を先頭に配置</span></div>
+            <div class="diff"><span class="dt2">7/26</span><span class="sch">桐生ヶ丘</span><span>お知らせの更新頻度が週1→週3に増加</span></div>
+            <div class="diff"><span class="dt2">7/22</span><span class="sch">白鷺学園</span><span>学費ページに6年間の総額シミュレーターを追加</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h2><span class="id">SM-03</span>指摘件数の内訳</h2><span class="note">検出された改善余地 18件</span></div>
+        <div class="card-b">
+          <table class="dt">
+            <thead><tr><th>検出元</th><th>件数</th><th>優先度 高</th><th>難易度 低</th><th>内容の例</th></tr></thead>
+            <tbody>
+              <tr><td>02 欠落マップ</td><td class="n">9</td><td class="n">5</td><td class="n">3</td><td>比較校にあり本校にない情報</td></tr>
+              <tr><td>03 導線の実測</td><td class="n">2</td><td class="n">1</td><td class="n">2</td><td>申込までの手数・更新の内訳</td></tr>
+              <tr><td>04 発見のされ方</td><td class="n">6</td><td class="n">2</td><td class="n">4</td><td>設定不備・表示内容・他社サイト上の記述</td></tr>
+              <tr><td>05 ペルソナ仮説</td><td class="n">1</td><td class="n">0</td><td class="n">0</td><td>理念記述と取り組みの断絶</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2><span class="id">SM-04</span>優先度が高く、難易度の低いもの</h2><span class="note">チェックすると対応済みとして記録されます</span></div>
+        <div class="card-b">
+          <div id="sm04list"></div>
+          <div style="margin-top:14px"><button class="btn ghost" data-goto="act">改善アクション18件を見る</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 -->
+  <section class="panel" id="p-gap">
+    <div class="btnrow" id="gapFilter">
+      <span class="lb">FILTER</span>
+      <button class="btn ghost" aria-pressed="true" data-f="all">全31項目</button>
+      <button class="btn ghost" aria-pressed="false" data-f="absent">本校にない情報</button>
+      <button class="btn ghost" aria-pressed="false" data-f="allhave">4校すべてにあり、本校になし</button>
+      <button class="btn ghost" aria-pressed="false" data-f="strong">本校が上回る項目</button>
+    </div>
+    <div class="card">
+      <div class="card-h"><h2><span class="id">GM</span>欠落マップ</h2><span class="note">ページの有無と掲載量のみを機械判定。内容の優劣は評価しません</span></div>
+      <div class="card-b">
+        <div class="gapwrap">
+        <table class="gap">
+          <thead><tr>
+            <th class="item">受験生・保護者・塾が探す情報（31項目）</th>
+            <th class="whoh">主に見る人</th>
+            <th class="mine">翠陵ヶ丘<small>SELF</small></th>
+            <th>白鷺学園</th><th>東雲台</th><th>清和国際</th><th>桐生ヶ丘</th>
+          </tr></thead>
+          <tbody id="gapbody"></tbody>
+        </table>
+        </div>
+        <div class="legend">
+          <span><b style="color:var(--sage)">●</b>詳細ページあり</span>
+          <span><b style="color:var(--ink-2)">◐</b>記載はあるが浅い</span>
+          <span><b style="color:var(--amber)">○</b>一言のみ</span>
+          <span><b style="color:var(--rose)">—</b>該当情報なし</span>
+          <span style="margin-left:auto">セルを押すと判定の根拠を表示</span>
+        </div>
+        <div class="evidence" id="ev">
+          <div class="ttl">セルを選択してください</div>
+          <p>この表は学校の優劣を評価するものではありません。「その情報が公開されているか」という事実だけを並べています。会議で使うときも、この事実のまま提示してください。</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <div class="card-h"><h2><span class="id">GM-00</span>判定方式について</h2><span class="note">語句の一致では判定できません</span></div>
+      <div class="card-b">
+        <p style="font-size:12.5px;line-height:1.9;color:var(--ink-2);margin-bottom:14px">
+          同じ内容でも、学校によってページの名称がまったく異なります。語句の一致で走査すると、<strong>実際にはある情報を「ない」と誤判定します</strong>。本ツールはページの内容から判定しています。
+        </p>
+        <table class="dt">
+          <thead><tr><th>項目</th><th>実在校で使われている名称の例</th></tr></thead>
+          <tbody>
+            <tr><td>探究学習</td><td>探究学習／自調自考論文／総合学習／探究コース／BEYOND・理数探究・αゼミ</td></tr>
+            <tr><td>学費</td><td>諸費用／学納金／入学金・学費／授業料等</td></tr>
+            <tr><td>施設・設備</td><td>施設・設備／施設紹介／施設案内／キャンパスマップ</td></tr>
+            <tr><td>学習サポート</td><td>学習フォロー体制／学習支援プログラム／特別講座／サポート体制</td></tr>
+            <tr><td>在校生の声</td><td>生徒紹介／生徒の活躍／各ページ内に埋め込み（独立ページを持たない例が多数）</td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:11.5px;line-height:1.8;color:var(--mute);margin-top:12px">
+          在校生の声については、独立ページの有無ではなく「生徒本人の一人称の発言がサイト内にあるか」で判定しています。調査した6校のうち専用ページを持つのは1校のみで、探究や留学の紹介ページ内に生徒のコメントを置く形が主流でした。
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 -->
+  <section class="panel" id="p-meas">
+    <div class="stack">
+      <div class="card">
+        <div class="card-h"><h2><span class="id">MS-01</span>説明会の申込にたどり着くまで</h2><span class="note">スマートフォンでの操作記録</span></div>
+        <div class="card-b">
+          <div class="paths">
+            <div class="path mine">
+              <div class="ph"><span class="who2">翠陵ヶ丘（自校）</span><span class="cnt">4クリック</span></div>
+              <div class="step pain"><span class="dot">1</span><span class="sl">トップページ<small>説明会への常設導線なし。ナビにも項目なし</small></span></div>
+              <div class="step"><span class="dot">2</span><span class="sl">入試情報</span></div>
+              <div class="step pain"><span class="dot">3</span><span class="sl">学校説明会<small>申込リンクは本文8行目。2回スクロールが必要</small></span></div>
+              <div class="step"><span class="dot">4</span><span class="sl">外部予約サイト</span></div>
+              <div class="step"><span class="dot end">✓</span><span class="sl">申込完了</span></div>
+            </div>
+            <div class="path">
+              <div class="ph"><span class="who2">実在6校の標準形</span><span class="cnt good">2クリック</span></div>
+              <div class="step"><span class="dot">1</span><span class="sl">トップページ<small>常設バナー、またはナビのドロップダウンから直接</small></span></div>
+              <div class="step"><span class="dot">2</span><span class="sl">説明会ページ<small>冒頭に予約ボタン。日程ごとに個別のボタン</small></span></div>
+              <div class="step"><span class="dot">3</span><span class="sl">外部予約サイト</span></div>
+              <div class="step"><span class="dot end">✓</span><span class="sl">申込完了</span></div>
+            </div>
+          </div>
+          <div class="evidence" style="margin-top:14px">
+            <div class="ttl">検証結果：中央値2クリックは実測で裏づけられました</div>
+            <p>実在6校すべてで、グローバルナビのドロップダウンから説明会ページへ1クリックで到達できます。さらに6校中4校は、トップページに説明会への常設導線（サイドバナー、ピックアップ枠、お知らせ最上部）を持っています。<br>
+            なお外部予約サイトへ遷移する形は業界の標準です。学校向けの予約・出願サービスは1社が全国の大半を占めており、本校が特殊なわけではありません。<strong>差がついているのは遷移前の2クリックだけ</strong>です。</p>
+            <div class="src">実在6校のグローバルナビ構造およびトップページ構成を走査（2026-08）</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2><span class="id">MS-02</span>実在6校との導線比較</h2><span class="note">学校名は伏せています</span></div>
+        <div class="card-b">
+          <table class="dt">
+            <thead><tr><th>学校</th><th>説明会申込まで</th><th>トップの常設導線</th><th>学校案内を読むまで</th><th>予約方式</th></tr></thead>
+            <tbody>
+              <tr style="background:#FDF8F9"><td><b>本校</b></td><td class="n" style="color:var(--rose)">4</td><td>なし</td><td class="n" style="color:var(--rose)">3</td><td>外部サービス</td></tr>
+              <tr><td>A 女子進学校（首都圏）</td><td class="n">2</td><td>あり</td><td class="n">1</td><td>外部サービス</td></tr>
+              <tr><td>B 共学進学校（首都圏）</td><td class="n">2</td><td>あり</td><td class="n">1</td><td>外部サービス</td></tr>
+              <tr><td>C 共学中堅校（東北）</td><td class="n">2</td><td>あり</td><td class="n">2</td><td>学校独自</td></tr>
+              <tr><td>D 男子中堅校（首都圏）</td><td class="n">2</td><td>なし</td><td class="n">2</td><td>外部サービス</td></tr>
+              <tr><td>E 共学附属校（首都圏）</td><td class="n">2</td><td>あり</td><td class="n">1</td><td>外部サービス</td></tr>
+              <tr><td>F 共学附属校（関西）</td><td class="n">2</td><td>なし</td><td class="n">1</td><td>学校独自</td></tr>
+            </tbody>
+          </table>
+          <div class="evidence" style="margin-top:14px">
+            <div class="ttl">指標をひとつ入れ替えました</div>
+            <p>従来この画面では「資料請求フォームまでのクリック数」を測っていましたが、実在6校すべてがその場で読めるデジタルパンフレットを公開しており、郵送用の請求フォームを持たない学校もありました。読み手が求めているのは資料の郵送ではなく<strong>いま読めること</strong>です。指標を<strong>「学校案内を読み始めるまでのクリック数」</strong>に置き換えています。<br>
+            本校は資料請求フォームのみで、その場で読める学校案内がありません。3クリックかけて到達した先が、郵送を待つ画面という状態です。</p>
+            <div class="src">実在6校の学校案内公開形態を走査（PDF・電子ブック・郵送フォーム）</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2><span class="id">MS-03</span>数えた値</h2><span class="note">縦線 ｜ は比較4校の中央値</span></div>
+        <div class="card-b"><div class="meas" id="measbody"></div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2><span class="id">MS-04</span>更新の実態</h2><span class="note">件数ではなく、中身と速さを見ます</span></div>
+        <div class="card-b">
+          <table class="dt">
+            <thead><tr><th>観点</th><th>本校</th><th>実在校で確認できた運用</th></tr></thead>
+            <tbody>
+              <tr><td>行事の実施から公開まで<span class="sub2">中央値</span></td><td class="n" style="color:var(--rose)">12日</td><td>海外研修の様子を8日間連続で日次更新した例、オープンスクールの報告を実施の翌営業日に公開した例が確認できました。</td></tr>
+              <tr><td>お知らせのカテゴリ数</td><td class="n" style="color:var(--rose)">0</td><td>「部活動報告」「留学レポート」「国際交流ニュース」「メディア掲載」「外部イベント出展情報」「事務室からのお知らせ」など8分類で運用している例。別の学校では5タブに分けています。</td></tr>
+              <tr><td>直近90日の更新<span class="sub2">内訳</span></td><td class="n" style="color:var(--rose)">12件<br>うち事務連絡 9</td><td>入試関連・学校行事・課外活動を独立したタブに分け、事務連絡がトップに並ばない構成にしている例が複数。</td></tr>
+              <tr><td>自校の露出の報告</td><td class="n" style="color:var(--rose)">0件</td><td>受験情報誌に取材された、外部フェアに出展する、といった情報も新着として発信している例。活動量の証明として機能します。</td></tr>
+            </tbody>
+          </table>
+          <div class="evidence" style="margin-top:14px">
+            <div class="ttl">件数を増やす前にできること</div>
+            <p>本校の更新12件のうち9件は事務連絡です。実在校が月30件以上更新できているのは、部活動・留学・行事の担当がそれぞれ書いているからで、広報部が1人で書いているわけではありません。<strong>カテゴリを分けて担当を割り当てることが、件数を増やす前提</strong>になります。</p>
+            <div class="src">実在校のお知らせ一覧の分類および直近の更新日を走査（2026-08）</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2><span class="id">MS-05</span>測定条件と再現性</h2><span class="note">誰が測っても同じ値になるか</span></div>
+        <div class="card-b">
+          <table class="dt">
+            <thead><tr><th>測定方法</th><th>再現性</th><th>該当する指標</th></tr></thead>
+            <tbody>
+              <tr><td><span class="tag t-ok">走査</span></td><td>同じ日なら完全に一致</td><td>更新件数、カテゴリ数、写真・動画の数、ページ数、公開までの日数</td></tr>
+              <tr><td><span class="tag t-neu">操作</span></td><td>経路の選び方で±1</td><td>説明会申込までのクリック数、学校案内を読むまでのクリック数</td></tr>
+              <tr><td><span class="tag t-warn">外部測定</span></td><td>回線と時間帯で変動</td><td>スマートフォンでの表示完了時間</td></tr>
+            </tbody>
+          </table>
+          <p style="font-size:12px;line-height:1.9;color:var(--ink-2);margin-top:12px">
+            クリック数は最短経路で数えています。トップページの常設バナーを使えば1クリック短くなる学校もあるため、経路の選び方で±1の幅が出ます。会議で使う際は「最短でも4クリック」という言い方が正確です。<br>
+            表示速度のみ外部の測定ツールに依存し、測るたびに値が変わります。この画面で唯一、再現性が保証できない指標です。<br>
+            解釈を加えているのは「05 ペルソナ仮説」と「06 改善アクション」で、そこには必ず根拠となるページを添えています。<strong>数えた事実</strong>と<strong>読み取り</strong>を混ぜないことが、この製品の設計方針です。
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 発見のされ方 -->
+  <section class="panel" id="p-seo">
+    <div class="stack">
+      <div class="card">
+        <div class="card-h"><h2><span class="id">SE-01</span>まだ学校名を知らない層への接点</h2><span class="note">地域名で探している家庭に、どの学校が届いているか</span></div>
+        <div class="card-b">
+          <table class="dt">
+            <thead><tr><th>検索語</th><th>月間検索数</th><th>本校</th><th>比較4校で最上位</th><th>1位のサイト</th></tr></thead>
+            <tbody>
+              <tr><td>○○市 私立中学</td><td class="n">890</td><td class="n" style="color:var(--rose)">12位</td><td class="n">白鷺学園 4位</td><td>受験情報サイト</td></tr>
+              <tr><td>○○市 中高一貫</td><td class="n">320</td><td class="n" style="color:var(--rose)">圏外</td><td class="n">白鷺学園 3位</td><td>塾ポータル</td></tr>
+              <tr><td>○○線 私立中学 共学</td><td class="n">210</td><td class="n" style="color:var(--rose)">圏外</td><td class="n">東雲台 6位</td><td>受験情報サイト</td></tr>
+              <tr><td>中学受験 探究学習 ○○</td><td class="n">140</td><td class="n" style="color:var(--rose)">圏外</td><td class="n">白鷺学園 2位</td><td>白鷺学園</td></tr>
+              <tr><td>○○市 中学 説明会</td><td class="n">260</td><td class="n" style="color:var(--rose)">圏外</td><td class="n">清和国際 5位</td><td>塾ポータル</td></tr>
+            </tbody>
+          </table>
+          <div class="evidence" style="margin-top:14px">
+            <div class="ttl">この画面だけが答えている問い</div>
+            <p>02の欠落マップと03の導線は、<strong>すでに本校のサイトに来た人</strong>の話です。この画面は、<strong>まだ本校を知らない人に届いているか</strong>を見ています。<br>
+            地域名で探している家庭には、比較5校のうち本校だけが届いていません。特に「探究学習」を含む検索では白鷺学園が2位に入っており、探究ページを持たない本校は候補にすら上がっていない状態です。<br>
+            上位の多くは受験情報サイトと塾ポータルです。ここを学校が取り切ることはできませんが、<strong>比較校は取れていて本校は取れていない</strong>という差は埋められます。</p>
+            <div class="src">順位は複数地点からの測定値の中央値。検索数は公開ツールの推定値</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2><span class="id">SE-02</span>学校名で探されたときの見え方</h2><span class="note">「翠陵ヶ丘 説明会」で検索した場合</span></div>
+        <div class="card-b">
+          <div class="serp">
+            <div class="lbl2">本校の説明会ページ ／ 4位</div>
+            <div class="url">suiryogaoka.ed.jp › admission › briefing2026</div>
+            <div class="ttl2">翠陵ヶ丘中学校・高等学校</div>
+            <div class="desc miss">翠陵ヶ丘中学校・高等学校の公式サイトです。本校は建学の精神である「豊かな人間性」のもと、生徒一人ひとりの…</div>
+            <div class="rich"><div class="ev2" style="color:var(--mute)">日程・残席の表示なし</div></div>
+          </div>
+          <div class="serp">
+            <div class="lbl2">白鷺学園の説明会ページ ／ 1位</div>
+            <div class="url">shirasagi.ed.jp › briefing</div>
+            <div class="ttl2">学校説明会・オープンスクールの日程｜白鷺学園中学校</div>
+            <div class="desc">2026年度の学校説明会・体験入学の日程一覧。web予約受付中。授業体験、部活動見学、個別相談も実施しています。</div>
+            <div class="rich">
+              <div class="ev2"><b>8月24日 (日) 10:00</b>体験入学・部活動見学</div>
+              <div class="ev2"><b>9月14日 (日) 10:00</b>第2回学校説明会</div>
+              <div class="ev2"><b>10月12日 (日) 13:30</b>入試説明会</div>
+            </div>
+          </div>
+          <div class="evidence" style="margin-top:14px">
+            <div class="ttl">実在3校でも、該当ページはいずれも4位でした</div>
+            <p>「学校名＋知りたいこと」で検索したとき、その情報を載せた自校のページが何番目に出るかを実在3校で確かめたところ、3校とも4位でした。上位を占めていたのは、自校のトップページ、Wikipedia、塾ポータル、そして<strong>名称の似た系列校のページ</strong>です。<br>
+            本校のページはタイトルが学校名のみ、説明文がトップページの理念文の冒頭になっており、検索した人が知りたい日程も申込方法も表示されていません。→ <strong>AC-08</strong>／<strong>AC-04</strong></p>
+            <div class="src">検索エンジンの結果順を実測（2026-08）。表示順は地域・端末により変動します</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2><span class="id">SE-03</span>ページ名称と検索語のズレ</h2><span class="note">校内の呼称のままページ名にしている箇所</span></div>
+        <div class="card-b">
+          <table class="dt">
+            <thead><tr><th>本校のページ名</th><th>実際に検索されている語</th><th>現在の順位</th><th>対応</th></tr></thead>
+            <tbody>
+              <tr><td>諸費用について</td><td>学費</td><td class="n" style="color:var(--rose)">圏外</td><td>AC-07</td></tr>
+              <tr><td>進路状況</td><td>進学実績</td><td class="n" style="color:var(--amber)">9位</td><td>AC-08</td></tr>
+              <tr><td>総合的な学習の時間</td><td>探究学習</td><td class="n" style="color:var(--rose)">圏外</td><td>AC-05</td></tr>
+              <tr><td>入学者選抜要項</td><td>募集要項</td><td class="n" style="color:var(--amber)">7位</td><td>AC-08</td></tr>
+            </tbody>
+          </table>
+          <div class="evidence" style="margin-top:14px">
+            <div class="ttl">02の欠落マップと同じ問題が、順位として現れています</div>
+            <p>02では「名称が違っても内容で判定する」と書きました。<strong>検索エンジンは、そこまで汲み取ってくれません。</strong>実在校の検証では、学費ページを「学納金」と名付けている学校で「学校名 学費」の順位が4位に沈み、上位をWikipediaと自校トップが占めていました。<br>
+            校内の正式名称を変える必要はありません。見出しに「学費（学納金）」のように併記するだけで解決します。</p>
+            <div class="src">実在校のページ名称と検索順位を突き合わせ（2026-08）</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2><span class="id">SE-04</span>設定状況の点検</h2><span class="note">全128ページを走査</span></div>
+        <div class="card-b">
+          <div class="eyebrow">先に直す5つ</div>
+          <table class="dt" style="margin-bottom:18px">
+            <thead><tr><th>不備</th><th>状況</th><th>効果</th><th>対応</th></tr></thead>
+            <tbody>
+              <tr><td>説明会の構造化データが未設定</td><td class="n">未設定</td><td>検索結果に日程が出るようになる</td><td><b>AC-04</b></td></tr>
+              <tr><td>ページ固有のtitle・説明文がない</td><td class="n">41 / 96件</td><td>何のページか判別できるようになる</td><td><b>AC-08</b></td></tr>
+              <tr><td>学費・要項がPDFのみ</td><td class="n">12件</td><td>検索対象になり、スマホで読める</td><td><b>AC-07</b></td></tr>
+              <tr><td>説明会ページのURLが毎年変わる</td><td class="n">年度ごと</td><td>評価が翌年に引き継がれる</td><td><b>AC-12</b></td></tr>
+              <tr><td>画像の代替テキストが未設定</td><td class="n">149 / 186点</td><td>画像検索から人が来る</td><td><b>AC-15</b></td></tr>
+            </tbody>
+          </table>
+          <div class="eyebrow">その他の点検結果</div>
+          <div id="seoChecks"></div>
+          <p style="font-size:11px;line-height:1.8;color:var(--mute);margin-top:14px;padding-top:10px;border-top:1px solid var(--line)">
+            補足：検索結果の上位には、本校が手を入れられない領域があります。受験情報サイトに過年度の説明会日程が残っている場合は更新を依頼できます（AC-17）。予約サービスのイベントページ自体も検索対象になるため、そこに学校紹介を入れておけます（AC-18）。口コミサイトの記述は制御できません。<br>
+            比較校の構造化データの実装は、検索結果での表示のされ方から推定しています。実際の流入数は本校の検索コンソールを連携すれば表示できますが、比較校については取得できません。自動アクセスを拒否している学校は走査せず、該当項目は空欄とし、欠落としては扱いません。
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 -->
+  <section class="panel" id="p-persona">
+    <div class="card">
+      <div class="card-h"><h2><span class="id">PS</span>ペルソナ仮説</h2><span class="note">サイトの記載内容から自動生成した読み取り。実際の反応とは異なります</span></div>
+      <div class="card-b">
+        <div class="psel">
+          <div class="pgroup">
+            <div class="glbl">誰の目線で見るか</div>
+            <div class="seg" id="typeSeg">
+              <button aria-pressed="true" data-t="e6">小学6年生</button>
+              <button aria-pressed="false" data-t="j3">中学3年生</button>
+              <button aria-pressed="false" data-t="pa">保護者</button>
+            </div>
+          </div>
+          <div class="pgroup">
+            <div class="glbl">性別</div>
+            <div class="seg" id="genSeg">
+              <button aria-pressed="true" data-g="f" id="genF">女子</button>
+              <button aria-pressed="false" data-g="m" id="genM">男子</button>
+            </div>
+          </div>
+        </div>
+        <div class="pcard">
+          <div class="pmeta" id="pmeta">PERSONA</div>
+          <div class="quote" id="pquote"></div>
+        </div>
+        <div class="eyebrow">根拠となったページ</div>
+        <div id="phyps"></div>
+        <div class="caution">
+          <b>この画面の扱い</b><br>
+          ここに出るのはサイトの記載内容から機械的に生成した仮説であり、実際の受験生・保護者の声ではありません。会議で「分析結果です」と提示すると必ず反発されます。<strong>9月の説明会アンケートに数問足して、この仮説が当たっているかを確かめてください。</strong>
+          <div style="margin-top:9px"><button class="btn ghost" id="qsBtn">検証用の設問を作る</button></div>
+          <div class="qs" id="qsBox">
+            <h5>説明会アンケート 追加設問案</h5>
+            <ul>
+              <li><b>Q1</b>本日ご来校前に、本校のホームページで最も知りたかったことは何ですか。（自由記述）</li>
+              <li><b>Q2</b>ホームページを見て、分からなかった・不安に感じたことはありましたか。（自由記述）</li>
+              <li><b>Q3</b>次のうち、ホームページで見つけられたものすべてに○を。<br>［授業の様子／在校生の声／6年間の学費／進路サポート／入試結果データ］</li>
+              <li><b>Q4</b>本校をお知りになったきっかけを教えてください。［学校サイト／塾／受験情報サイト／知人／その他］</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 06 -->
+  <section class="panel" id="p-act">
+    <div class="btnrow" id="grpSel">
+      <span class="lb">GROUP BY</span>
+      <button class="btn ghost" aria-pressed="true" data-g="pri">優先度</button>
+      <button class="btn ghost" aria-pressed="false" data-g="dif">難易度</button>
+      <span class="lb" style="margin-left:16px">SOURCE</span>
+      <button class="btn ghost" aria-pressed="true" data-s="all">すべて</button>
+      <button class="btn ghost" aria-pressed="false" data-s="02">欠落マップ</button>
+      <button class="btn ghost" aria-pressed="false" data-s="03">導線</button>
+      <button class="btn ghost" aria-pressed="false" data-s="04">発見</button>
+      <span class="lb" id="actDoneCount" style="margin-left:auto"></span>
+    </div>
+    <div id="actbody"></div>
+    <div class="card" style="margin-top:16px">
+      <div class="card-h"><h2><span class="id">AC-00</span>優先度・難易度の基準</h2></div>
+      <div class="card-b">
+        <table class="dt">
+          <thead><tr><th>区分</th><th>高</th><th>中</th><th>低</th></tr></thead>
+          <tbody>
+            <tr><td><b>優先度</b><span class="sub2">誰の判断に影響するか</span></td>
+              <td>比較4校すべてが公開／申込導線上の離脱点</td>
+              <td>一部の比較校が公開／間接的に影響</td>
+              <td>整備済みだが改善の余地がある</td></tr>
+            <tr><td><b>難易度</b><span class="sub2">校内で完結するか</span></td>
+              <td>委員会・管理職の決裁、または外部委託が必要</td>
+              <td>他分掌との調整、または新規素材の作成が必要</td>
+              <td>広報部の判断で完結し、素材も揃っている</td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:11px;color:var(--mute);margin-top:9px">所要時間や期限は学校ごとの体制によって大きく変わるため、この画面では提示していません。担当の割り当てと期限は校内でご判断ください。<br>難易度を作業量ではなく「どこまで話を通す必要があるか」で定義しています。学校で施策が止まる主因は工数ではなく合意形成にあるためです。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 07 -->
+  <section class="panel" id="p-sheet">
+    <div class="optbar">
+      <div class="optgrp">
+        <div class="glbl">含める内容</div>
+        <div class="checks" id="blkChecks">
+          <label><input type="checkbox" checked data-b="b1">比較校との情報差</label>
+          <label><input type="checkbox" checked data-b="b2">本校の強み</label>
+          <label><input type="checkbox" checked data-b="b3">導線の実測</label>
+          <label><input type="checkbox" checked data-b="b4">発見のされ方</label>
+          <label><input type="checkbox" checked data-b="b5">ペルソナ仮説</label>
+          <label><input type="checkbox" checked data-b="b6">改善アクション</label>
+        </div>
+      </div>
+      <div class="optgrp">
+        <div class="glbl">出力</div>
+        <div class="btnrow" style="margin:0">
+          <button class="btn">PDFで書き出す</button>
+          <button class="btn ghost">比較校名を伏せる</button>
+          <button class="btn ghost">A4横 1枚に収める</button>
+        </div>
+      </div>
+    </div>
+    <div class="sheet">
+      <div class="sheet-h">
+        <div class="t">ホームページ現状レポート</div>
+        <div class="d">翠陵ヶ丘中学校・高等学校 ／ 広報部<br>作成 2026-08-03 ／ 128ページ走査 ／ 調査31項目 ／ 比較4校</div>
+      </div>
+
+      <section class="blk" id="b1">
+        <h3>1. 比較4校との情報差（事実）</h3>
+        <table>
+          <tr><th>4校すべてが公開し、本校になし</th><th>主に参照する人</th></tr>
+          <tr><td>探究学習の紹介</td><td>保護者・塾</td></tr>
+          <tr><td>在校生の声</td><td>受験生</td></tr>
+          <tr><td>学習サポート・補習体制</td><td>保護者</td></tr>
+          <tr><td>合同相談会・外部フェアの日程掲載</td><td>保護者</td></tr>
+        </table>
+        <table style="margin-top:8px">
+          <tr><th>4校の一部が公開し、本校になし</th><th>公開校数</th></tr>
+          <tr><td>塾・教育関係者対象説明会</td><td>3 / 4校</td></tr>
+          <tr><td>スクールポリシー（3つの方針）</td><td>2 / 4校</td></tr>
+        </table>
+      </section>
+
+      <section class="blk" id="b2">
+        <h3>2. 本校が比較校より整っている情報</h3>
+        <table>
+          <tr><th>項目</th><th>状況</th></tr>
+          <tr><td>部活動の個別ページ</td><td>全27部を個別に掲載。比較4校中2校は一覧のみ</td></tr>
+          <tr><td>進学実績</td><td>過去3年を大学別・現役／既卒別に整理</td></tr>
+          <tr><td>制服紹介</td><td>着用写真8点。夏冬・体育着まで網羅</td></tr>
+        </table>
+      </section>
+
+      <section class="blk" id="b3">
+        <h3>3. 導線の実測</h3>
+        <table>
+          <tr><th>項目</th><th>本校</th><th>比較4校 中央値</th></tr>
+          <tr><td>トップから説明会の申込完了まで</td><td>4クリック</td><td>2クリック</td></tr>
+          <tr><td>学校案内を読み始めるまで</td><td>3クリック</td><td>1クリック</td></tr>
+          <tr><td>直近90日の更新件数（うち事務連絡）</td><td>12件（9件）</td><td>34件（7件）</td></tr>
+          <tr><td>お知らせのカテゴリ数</td><td>0分類</td><td>5分類</td></tr>
+          <tr><td>行事の実施から公開までの日数</td><td>12日</td><td>1日</td></tr>
+          <tr><td>スマートフォンでの表示完了</td><td>4.2秒</td><td>2.6秒</td></tr>
+        </table>
+        <p style="font-size:11px;color:var(--mute);margin-top:5px">※ クリック数は最短経路。表示速度のみ外部の測定ツールに依存し、測るたびに値が変動します。</p>
+      </section>
+
+      <section class="blk" id="b4">
+        <h3>4. 発見のされ方（検索）</h3>
+        <table>
+          <tr><th>検索語</th><th>本校</th><th>比較4校で最上位</th></tr>
+          <tr><td>○○市 私立中学</td><td>12位</td><td>白鷺学園 4位</td></tr>
+          <tr><td>○○市 中高一貫</td><td>圏外</td><td>白鷺学園 3位</td></tr>
+          <tr><td>中学受験 探究学習 ○○</td><td>圏外</td><td>白鷺学園 2位</td></tr>
+          <tr><td>翠陵ヶ丘 説明会（学校名）</td><td>4位</td><td>—</td></tr>
+          <tr><td>翠陵ヶ丘 学費（学校名）</td><td>圏外</td><td>—</td></tr>
+        </table>
+        <p style="font-size:11px;color:var(--mute);margin-top:5px">※ 地域名で探している家庭には、比較5校のうち本校だけが届いていません。<br>※ ページ名称に校内の呼称（諸費用・総合的な学習の時間など）を用いている箇所があり、検索語と一致していません。</p>
+        <p style="font-size:11px;color:var(--mute);margin-top:5px">※ 本校について検索した人の多くが、本校のページではなく他社の記述を読んでいる状態にあります。<br>※ ページ名称に校内の呼称（学納金など）を用いている箇所があり、検索語と一致していません。</p>
+      </section>
+
+      <section class="blk" id="b5">
+        <h3>5. ペルソナ仮説の要点（自動生成）</h3>
+        <table>
+          <tr><th>目線</th><th>最も強く出た不足</th></tr>
+          <tr><td>小学6年生</td><td>授業中の写真と在校生の言葉がなく、通う姿を想像しにくい</td></tr>
+          <tr><td>中学3年生</td><td>高校から入学した生徒の様子が分からず、内部進学生との関係が不安</td></tr>
+          <tr><td>保護者</td><td>6年間の費用総額と、成績不振時のサポート体制が読み取れない</td></tr>
+        </table>
+        <p style="font-size:11px;color:var(--mute);margin-top:5px">※ サイトの記載内容から生成した仮説です。9月説明会のアンケートで検証予定。</p>
+      </section>
+
+      <section class="blk" id="b6">
+        <h3>6. 改善アクション（優先度 高）</h3>
+        <table id="sheetActs"></table>
+        <p style="font-size:11px;color:var(--mute);margin-top:5px">※ 全18件のうち優先度が高いものを抜粋しています。所要時間・期限は校内の体制により変動するため記載していません。<br>※ 難易度は「校内でどこまで話を通す必要があるか」で判定しています（低＝広報部で完結／中＝他分掌との調整／高＝委員会・管理職の決裁または外部委託）。</p>
+      </section>
+
+      <div class="conf">
+        本レポートの調査項目は、実在する私立中高一貫校6校（首都圏・関西・東北／進学校・中堅校・大学附属校／男子校・女子校・共学校）のサイト構造をもとに設計しています。項目の判定はページ名称の一致ではなく、内容に基づいて行っています。<br>本レポートは本校内での検討を目的として作成したものです。比較校に関する記載は、各校が一般に公開しているページの有無・更新日・掲載件数を記録したもので、教育内容や学校運営の優劣を評価するものではありません。校外への配布・転載はご遠慮ください。<br>
+        調査日：2026年8月3日 ／ 走査128ページ ／ 調査項目31件 ／ 導線の実測はスマートフォン（4G相当）での操作記録 ／ 検索順位は複数地点測定の中央値
+      </div>
+    </div>
+  </section>
+
+  </div>
+</main>
+</div>
+
+<script>
+const MARK={full:['●','full'],mid:['◐',''],thin:['○','thin'],none:['—','none']};
+const SCHOOLS=['翠陵ヶ丘（自校）','白鷺学園','東雲台','清和国際','桐生ヶ丘'];
+const LABEL={full:'詳細ページあり',mid:'記載はあるが浅い',thin:'一言のみ',none:'該当情報なし'};
+
+const CATS={A:'理念・方針',B:'教育内容',C:'学校生活',D:'進路',E:'費用・安心',F:'入試・導線',G:'情報発信'};
+const GAP=[
+ {id:'A1',cat:'A',who:'保護者・塾',item:'建学の精神・教育理念',v:['mid','full','full','full','mid'],
+  ev:'理念ページが1つあり、300字程度の文章が掲載されています。ただし具体的な取り組み（授業・行事・進路指導）へのリンクがありません。調査した実在6校のうち4校は、理念から各取り組みページへ導線を持っています。志望校選びで最も重視される項目のため、記述の抽象度が高いままだと他校と区別がつきません。',src:'/about/philosophy/ ｜ 最終更新 2021-04-01'},
+ {id:'A2',cat:'A',who:'保護者',item:'校長・学園長挨拶',v:['thin','full','full','mid','full'],
+  ev:'校長挨拶は存在しますが、2019年の就任時の文章のままです。実在6校すべてが独立ページとして持ち、うち1校は学園長と学校長の2本立てで掲載しています。',src:'/about/greeting/ ｜ 最終更新 2019-04-01'},
+ {id:'A3',cat:'A',who:'保護者・塾',item:'スクールポリシー（3つの方針）',v:['none','full','none','mid','none'],
+  ev:'育成を目指す資質・能力／教育課程編成／入学者受入れの3方針を示すページが見つかりません。高校での策定が求められている項目で、比較4校のうち1校が独立ページ、1校が理念ページ内に記載しています。今後標準化していく項目です。',src:'サイト全体を走査 ｜ 該当ページ 0件'},
+
+ {id:'B1',cat:'B',who:'保護者',item:'6年間のカリキュラム・教育課程',v:['full','full','full','full','mid'],
+  ev:'学年ごとの単位配当表が表形式で掲載されています。比較校と比べて差はありません。',src:'/education/curriculum/'},
+ {id:'B2',cat:'B',who:'保護者・塾',item:'探究学習',v:['none','full','full','mid','full'],
+  ev:'探究に相当する取り組みを扱う独立ページが見つかりません。年間行事予定PDF内に「探究発表会」の記載が1件あるのみで、実施しているにもかかわらず、サイト上では実施していないのと同じ状態です。なお本項目は学校ごとに名称が大きく異なるため、語句の一致ではなくページ内容から判定しています。',src:'サイト全体を走査 ｜ 該当ページ 0件'},
+ {id:'B3',cat:'B',who:'受験生・保護者',item:'グローバル教育・英語・留学',v:['thin','full','full','full','full'],
+  ev:'海外研修の実施が年間行事一覧に2行あるだけで、独立ページがありません。実在6校すべてが独立ページを持ち、うち4校は留学制度・提携校・英語カリキュラムを個別ページに分けています。',src:'/school-life/events/ ｜ 該当記述 2件'},
+ {id:'B4',cat:'B',who:'保護者',item:'ICT教育・1人1台端末',v:['mid','full','mid','full','mid'],
+  ev:'端末の導入について1段落の記述があります。授業での使い方や家庭での扱いに関する説明はありません。',src:'/education/ict/'},
+ {id:'B5',cat:'B',who:'保護者',item:'学習サポート・補習体制',v:['none','mid','full','mid','mid'],
+  ev:'補習・個別指導・面談の頻度など、日常のサポートに関する記述が見つかりません。実在6校では「学習フォロー体制」「学習支援プログラム」「特別講座」など名称が分かれますが、いずれも独立ページを持っています。保護者の検索が最も多い項目のひとつです。',src:'/course/ 配下 全6ページ ｜ 該当記述 0件'},
+
+ {id:'C1',cat:'C',who:'受験生',item:'年間行事',v:['full','full','full','full','full'],
+  ev:'月別の年間行事一覧が掲載され、主要行事には写真が添えられています。全校が対応済みの項目です。',src:'/school-life/events/'},
+ {id:'C2',cat:'C',who:'受験生',item:'部活動の個別ページ',v:['full','mid','full','full','mid'],
+  ev:'全27部の個別ページがあり、活動日・実績・写真が揃っています。比較4校中2校は一覧表のみで、この項目は本校が上回っています。',src:'/club/ 配下 全27ページ'},
+ {id:'C3',cat:'C',who:'受験生',item:'施設・設備',v:['thin','full','full','mid','full'],
+  ev:'校舎外観の写真が2点あるのみで、教室・図書室・実験室・体育施設・食堂の紹介がありません。受験生が重視する項目として近年伸びており、実在6校すべてが独立ページを持ちます。うち1校は360度のキャンパスツアーを設置しています。',src:'/about/ ｜ 施設関連画像 2点'},
+ {id:'C4',cat:'C',who:'受験生',item:'制服紹介',v:['full','full','full','mid','full'],
+  ev:'夏服・冬服・体育着の着用写真が計8点。着こなしの説明文もあります。',src:'/school-life/uniform/'},
+ {id:'C5',cat:'C',who:'受験生',item:'1日の流れ・時程',v:['mid','mid','full','none','mid'],
+  ev:'時程表の画像が1点掲載されています。文章による説明や、放課後の過ごし方の記述はありません。',src:'/school-life/schedule/'},
+ {id:'C6',cat:'C',who:'受験生',item:'在校生の声',v:['none','full','full','full','full'],
+  ev:'在校生本人の一人称の発言がサイト内のどこにも見つかりません。独立ページの有無ではなく、掲載形態を問わず本人の言葉があるかで判定しています。実在校では専用ページを持たず、探究や留学の紹介ページ内に生徒のコメントを埋め込む形が主流です。',src:'サイト全体を走査 ｜ 該当記述 0件'},
+ {id:'C7',cat:'C',who:'受験生',item:'授業風景の写真・動画',v:['thin','full','mid','full','full'],
+  ev:'授業中の画像は3点。うち2点は実験設備の写真で生徒が写っていません。動画はありません。比較4校の授業関連画像は平均21点です。',src:'/education/ 配下 全9ページ ｜ 画像3点'},
+
+ {id:'D1',cat:'D',who:'保護者・塾',item:'進学実績（過去3年）',v:['full','full','full','mid','full'],
+  ev:'大学別・現役／既卒別の合格者数を3年分掲載しています。比較校の中でも整理度は高い部類です。',src:'/course/results/ ｜ 最終更新 2026-04-11'},
+ {id:'D2',cat:'D',who:'保護者',item:'進路指導・進路サポート',v:['mid','full','full','mid','full'],
+  ev:'進路指導の方針が1ページにまとまっていますが、学年ごとに何を行うかの記述がありません。実在校では「高校3年間の指導ストーリー」のように学年別に示す例が見られます。',src:'/course/guidance/'},
+ {id:'D3',cat:'D',who:'受験生・保護者',item:'卒業生の声',v:['thin','full','mid','full','none'],
+  ev:'卒業生の氏名と進学先が一覧に含まれていますが、本人の言葉はありません。',src:'/course/results/'},
+ {id:'D4',cat:'D',who:'保護者',item:'系列大学への内部進学・推薦制度',v:['mid','none','full','none','mid'],
+  ev:'系列大学への推薦枠に関する記述が募集要項PDF内に1行あるのみです。系列を持つ学校では進学実績以上に判断材料になる項目で、実在の附属校では独立ページで推薦制度と進学率を示しています。系列を持たない学校では判定対象外となります。',src:'/admission/outline.pdf ｜ 該当記述 1件'},
+
+ {id:'E1',cat:'E',who:'保護者',item:'学費（ページ本文への掲載）',v:['thin','full','mid','full','mid'],
+  ev:'学費はPDF1枚のみで、ページ上に金額の記載がありません。スマートフォンでは拡大しないと読めず、検索の対象にもなりません。なお本項目は「諸費用」「学納金」「入学金・学費」など名称が学校ごとに異なるため、内容で判定しています。',src:'/admission/fee.pdf ｜ HTML化されたページなし'},
+ {id:'E2',cat:'E',who:'保護者',item:'奨学金・特待制度',v:['thin','full','full','mid','full'],
+  ev:'学費PDFの末尾に条件が記載されていますが、独立したページがありません。実在校では奨学金制度を独立ページ、あるいは奨学会と制度の2ページに分けて掲載しています。',src:'/admission/fee.pdf p.2'},
+ {id:'E3',cat:'E',who:'保護者',item:'学校評価・安全対策',v:['thin','mid','full','full','mid'],
+  ev:'学校評価報告書PDFが1件掲載されていますが、独立ページはありません。実在校では「在校生・保護者による学校評価」として独立公開する例があり、いじめ対策・相談窓口もその中で扱われます。',src:'/about/report2025.pdf'},
+
+ {id:'F1',cat:'F',who:'保護者・塾',item:'募集要項（一般・帰国生）',v:['full','full','full','full','full'],
+  ev:'日程・科目・配点が一覧表で整理され、帰国生入試の要項も別ページで公開されています。全校が対応済みの項目です。',src:'/admission/outline/'},
+ {id:'F2',cat:'F',who:'保護者',item:'説明会の日程・申込',v:['thin','full','full','full','full'],
+  ev:'説明会ページ本文中のテキストリンクから外部予約サイトへ遷移します。ボタン要素はなく、スマートフォンでは2回スクロールしないと到達しません。外部予約サービスの利用自体は業界標準のため、問題は遷移前の導線にあります。',src:'/admission/briefing/ ｜ ボタン要素 0件'},
+ {id:'F3',cat:'F',who:'塾',item:'塾・教育関係者対象説明会',v:['none','full','full','none','full'],
+  ev:'塾・教育関係者を対象とした説明会の案内が見つかりません。比較4校中3校は日程を公開しており、うち1校は独立ページを設けています。塾経由の受験生に届く経路のひとつです。',src:'サイト全体を走査 ｜ 該当ページ 0件'},
+ {id:'F4',cat:'F',who:'保護者',item:'合同相談会・外部フェアの日程掲載',v:['none','full','full','mid','full'],
+  ev:'自校が出展する合同相談会・進学フェアの日程が掲載されていません。比較4校はいずれも掲載しており、うち1校は年間14件を一覧化しています。合同フェアは近年利用が伸びている情報源です。',src:'サイト全体を走査 ｜ 該当ページ 0件'},
+ {id:'F5',cat:'F',who:'塾',item:'入試データ（結果・出願状況・過去問）',v:['thin','mid','none','full','none'],
+  ev:'過去問を直近1年分のみ公開しています。受験者数・合格者数・実質倍率や、出願期間中の出願状況は公開していません。比較4校でも公開は1校のみで、業界全体でも公開校は多くありません。裏を返せば、公開すれば差別化になる領域です。',src:'/admission/past-exams/ ｜ 入試結果ページ 0件'},
+ {id:'F6',cat:'F',who:'保護者',item:'アクセス・通学',v:['mid','full','full','full','mid'],
+  ev:'最寄駅からの徒歩分数と地図は掲載されていますが、主要駅からの所要時間・利用可能路線・通学圏の説明がありません。保護者が学習面以外で最も重視する項目です。実在6校すべてがグローバルナビに配置し、うち2校はフッターにも重複配置しています。',src:'/access/'},
+
+ {id:'G1',cat:'G',who:'保護者',item:'デジタルパンフレット・資料請求',v:['mid','full','full','full','full'],
+  ev:'資料請求フォームは存在しますが、その場で読めるデジタルパンフレットがありません。実在6校すべてがPDFまたは電子ブック形式の学校案内を公開しています。郵送を待たずに読めるかどうかの差です。',src:'/admission/request/'},
+ {id:'G2',cat:'G',who:'受験生',item:'公式SNS（媒体と導線）',v:['thin','full','mid','full','full'],
+  ev:'Instagramのみ運用し、リンクはフッターにあります。実在校ではInstagram・YouTube・LINE・Facebookを併用する例が多く、4媒体を持つ学校もあります。特にLINEは説明会案内の配信経路として使われています。',src:'外部リンク ｜ 直近90日 8投稿'},
+ {id:'G3',cat:'G',who:'受験生・保護者',item:'ブログ・お知らせ',v:['mid','full','full','mid','full'],
+  ev:'お知らせ欄は稼働していますが、直近90日で12件。うち9件は事務連絡で、学校の様子が伝わる記事は3件です。実在校では「部活動報告」「留学レポート」「事務室からのお知らせ」のようにカテゴリを分けて運用する例が見られます。',src:'/news/ ｜ 直近90日 12件'}
+];
+
+const isAbsent=r=>r.v[0]==='none';
+const isAllHave=r=>r.v[0]==='none'&&r.v.slice(1).every(x=>x!=='none');
+const isStrong=r=>r.v[0]==='full'&&r.v.slice(1).some(x=>x!=='full');
+
+const abs=GAP.filter(isAllHave);
+document.getElementById('absN').textContent=abs.length;
+document.getElementById('absList').innerHTML=abs.map((r,i)=>
+ `<li><span class="n">${String(i+1).padStart(2,'0')}</span><span class="it">${r.item}</span><span class="st">主に ${r.who} が探す情報</span></li>`).join('');
+document.getElementById('strongList').innerHTML=GAP.filter(isStrong).map(r=>{
+  const n=r.v.slice(1).filter(x=>x!=='full').length;
+  return `<li><span class="mk">●</span><span>${r.item}<br><span style="color:var(--mute);font-size:11px">比較4校中${n}校は本校より掲載量が少ない</span></span></li>`;
+}).join('');
+
+const tb=document.getElementById('gapbody');
+let curCat=null;
+GAP.forEach(r=>{
+  if(r.cat!==curCat){
+    curCat=r.cat;
+    const ctr=document.createElement('tr');
+    ctr.className='catrow';
+    ctr.innerHTML=`<th colspan="7"><span class="ck">${r.cat}</span>${CATS[r.cat]}</th>`;
+    tb.appendChild(ctr);
+  }
+  const tr=document.createElement('tr');
+  tr.dataset.absent=isAbsent(r);tr.dataset.allhave=isAllHave(r);tr.dataset.strong=isStrong(r);
+  if(isAllHave(r))tr.classList.add('flag');
+  tr.innerHTML=`<th class="item"><span class="rowlbl"><span class="rid">${r.cat}${r.id.slice(1)}</span>${r.item}</span></th><td><span class="who">${r.who}</span></td>`;
+  r.v.forEach((v,ci)=>{
+    const td=document.createElement('td');if(ci===0)td.className='mine';
+    const b=document.createElement('button');
+    b.className='mk-cell '+MARK[v][1];b.textContent=MARK[v][0];
+    b.setAttribute('aria-pressed','false');
+    b.setAttribute('aria-label',r.item+'：'+SCHOOLS[ci]+' '+LABEL[v]);
+    b.onclick=()=>{
+      document.querySelectorAll('.mk-cell[aria-pressed="true"]').forEach(x=>x.setAttribute('aria-pressed','false'));
+      b.setAttribute('aria-pressed','true');
+      const ev=document.getElementById('ev');
+      ev.innerHTML = ci===0
+        ? `<div class="ttl">${r.id}　${r.item}　—　${SCHOOLS[0]}</div><p>${r.ev}</p><div class="src">判定に使ったページ：${r.src}</div>`
+        : `<div class="ttl">${r.id}　${r.item}　—　${SCHOOLS[ci]}</div><p>判定：${LABEL[v]}。<br>比較校については、公開ページの有無と掲載量のみを記録しています。内容の評価や優劣の判定は行いません。</p><div class="src">各校が一般に公開しているページに基づく記録</div>`;
+    };
+    td.appendChild(b);tr.appendChild(td);
+  });
+  tb.appendChild(tr);
+});
+document.querySelectorAll('#gapFilter button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('#gapFilter button').forEach(x=>x.setAttribute('aria-pressed','false'));
+    b.setAttribute('aria-pressed','true');
+    const f=b.dataset.f;
+    tb.querySelectorAll('tr').forEach(tr=>{
+      if(tr.classList.contains('catrow')){tr.classList.toggle('hide',f!=='all');return;}
+      tr.classList.toggle('hide',!(f==='all'||tr.dataset[f]==='true'));
+    });
+  };
+});
+
+const MEAS=[
+ {n:'トップページから説明会の申込完了まで',s:'最短経路のクリック数',v:4,u:'クリック',med:2,max:6,bad:1,m:'操作'},
+ {n:'学校案内を読み始めるまで',s:'その場で読める形式に到達するまで',v:3,u:'クリック',med:1,max:6,bad:1,m:'操作'},
+ {n:'直近90日の更新件数',s:'お知らせ・ブログ・行事報告の合計',v:12,u:'件',med:34,max:60,bad:1,m:'走査'},
+ {n:'うち学校の様子が伝わる記事',s:'事務連絡を除いた件数',v:3,u:'件',med:22,max:40,bad:1,m:'走査'},
+ {n:'お知らせのカテゴリ数',s:'種類ごとに分けているか',v:0,u:'分類',med:5,max:10,bad:1,m:'走査'},
+ {n:'行事の実施から公開までの日数',s:'中央値。小さいほど速い',v:12,u:'日',med:1,max:20,bad:1,m:'走査'},
+ {n:'掲載写真の点数',s:'サイト全体（バナー・アイコンを除く）',v:186,u:'点',med:412,max:600,bad:1,m:'走査'},
+ {n:'動画の本数',s:'埋め込み・外部リンクを含む',v:1,u:'本',med:7,max:14,bad:1,m:'走査'},
+ {n:'部活動の個別ページ数',s:'部ごとに独立したページがあるか',v:27,u:'ページ',med:11,max:30,bad:0,m:'走査'},
+ {n:'スマートフォンでの表示完了時間',s:'4G相当の回線を想定した実測値',v:4.2,u:'秒',med:2.6,max:6,bad:1,m:'外部測定'}
+];
+const MTAG={'走査':'t-ok','操作':'t-neu','外部測定':'t-warn'};
+document.getElementById('measbody').innerHTML=MEAS.map(m=>`
+ <div class="meas-row">
+   <div><div class="meas-name"><span class="tag ${MTAG[m.m]}" style="margin-right:7px">${m.m}</span>${m.n}<small>${m.s}</small></div>
+     <div class="bar"><i class="mine ${m.bad?'':'good'}" style="width:${Math.min(100,m.v/m.max*100)}%"></i><i class="avg" style="left:${Math.min(100,m.med/m.max*100)}%"></i></div></div>
+   <div class="meas-val">${m.v}<small>${m.u}｜中央値 ${m.med}</small></div>
+ </div>`).join('');
+
+/* ===== 検索 ===== */
+
+
+const CHECKS=[
+ ['ng','ページ名称と検索語の一致','校内の呼称のままページ名にしている箇所がある。「学納金」「諸費用」は検索されず、利用者は「学費」で検索する','AC-07 / AC-08'],
+ ['ng','構造化データ EducationalOrganization','学校の基本情報（所在地・電話・設立）を記述する設定','AC-04'],
+ ['wn','見出し構造（h1）','22ページで未設定、6ページで複数設定されている','制作会社へ依頼'],
+ ['wn','XMLサイトマップ','設置されているが2023年5月から更新されていない','制作会社へ依頼'],
+ ['wn','インデックス状況','公開128ページのうち94ページのみが検索対象に含まれている','要調査'],
+ ['wn','モバイル表示','一部ページで横スクロールが発生している','制作会社へ依頼'],
+ ['ok','常時SSL（HTTPS）','全ページで対応済み','対応不要'],
+ ['ok','robots.txt','正しく設置され、必要なページを除外していない','対応不要']
+];
+document.getElementById('seoChecks').innerHTML=CHECKS.map(c=>{
+  const m={ng:'×',wn:'△',ok:'○'}[c[0]];
+  return `<div class="chk"><div class="st2 ${c[0]}">${m}</div>
+  <div class="nm2">${c[1]}<small>${c[2]}</small></div><div class="rt">${c[3]}</div></div>`;
+}).join('');
+
+/* ===== ペルソナ ===== */
+const PERSONA={
+ e6f:{meta:'小学6年生・女子 ／ 中学受験',
+  q:'「制服はかわいい。でも、授業がどんな感じなのか分からないから、<br>通っている自分をうまく想像できない。」',
+  h:[['ok','支持','制服紹介に着用写真が8点。夏服・冬服・体育着まで揃っている','/school-life/uniform/'],
+     ['ok','支持','体育祭・文化祭の写真が計62点。行事の様子は伝わる','/school-life/events/'],
+     ['gap','欠落','授業中の写真は3点のみ。うち2点は実験設備の写真で生徒が写っていない','C7 ｜ /education/curriculum/'],
+     ['gap','欠落','在校生本人の言葉が載っているページが見つからない','C6 ｜ 該当 0件']]},
+ e6m:{meta:'小学6年生・男子 ／ 中学受験',
+  q:'「部活のページはすごく詳しい。でも、勉強がどれくらい大変なのか<br>書いていないから、部活と両立できるのか分からない。」',
+  h:[['ok','支持','全27部の個別ページに活動日・実績・写真が掲載されている','C2 ｜ /club/ 配下'],
+     ['gap','欠落','1日の流れは時程表の画像1点のみ。放課後の過ごし方の記述がない','C5 ｜ /school-life/schedule/'],
+     ['gap','欠落','宿題量・小テスト・補習の頻度など、学習負荷が分かる記述がない','B5 ｜ 該当記述 0件'],
+     ['warn','要確認','中学生の部活動加入率・活動時間の記載がなく、実態が読み取れない','/club/']]},
+ j3f:{meta:'中学3年生・女子 ／ 高校からの入学を検討',
+  q:'「高校から入った人が、中学からの人となじめているのか分からない。<br>ページは全部、中1から通っている前提で書かれている。」',
+  h:[['ok','支持','高校からの募集要項・日程は入試情報に明記されている','F1 ｜ /admission/outline/'],
+     ['gap','欠落','高校入学生の学級編成（混合か別クラスか）の説明が見つからない','/admission/ 配下 ｜ 該当 0件'],
+     ['gap','欠落','在校生インタビューがないため、高校から入った先輩の声も存在しない','C6 ｜ 該当 0件'],
+     ['warn','要確認','カリキュラム表は中1起点の6年一貫で示され、高校3年間の履修が読み取りにくい','B1 ｜ /education/curriculum/']]},
+ j3m:{meta:'中学3年生・男子 ／ 高校からの入学を検討',
+  q:'「進学実績は分かった。でも、それが中学から通った人の実績なのか、<br>高校から入った人も含むのかが書いていない。」',
+  h:[['ok','支持','大学別・現役／既卒別の合格実績を3年分掲載','D1 ｜ /course/results/'],
+     ['gap','欠落','実績の内訳（一貫生／高入生）が示されていない','/course/results/'],
+     ['gap','欠落','高校からの入学生向けの補習・接続カリキュラムの記述がない','B5 ｜ 該当記述 0件'],
+     ['ok','支持','部活動の実績が部ごとに具体的に書かれており、判断材料になる','C2 ｜ /club/ 配下']]},
+ paf:{meta:'保護者・母親（40代）／ 最終意思決定者',
+  q:'「進学実績は分かった。ただ、成績が伸び悩んだときに<br>誰がどう見てくれるのかが書かれていない。」',
+  h:[['ok','支持','過去3年の合格実績を大学別・現役／既卒別に掲載','D1 ｜ /course/results/'],
+     ['gap','欠落','補習・個別指導・面談頻度など、日常のサポート体制の記述がない','B5 ｜ 該当 0件'],
+     ['gap','欠落','学費ページはPDF1枚のみ。奨学金・特待の条件がページ上で読めない','E1 ｜ /admission/fee.pdf'],
+     ['warn','要確認','いじめ対策・相談窓口の記載が学校評価報告書PDF内のみ','E3 ｜ /about/report2025.pdf']]},
+ pam:{meta:'保護者・父親（40代）／ 費用と出口を確認',
+  q:'「6年間で総額いくらかかるのかが、どこにも書いていない。<br>初年度納入金だけ見せられても判断できない。」',
+  h:[['gap','欠落','6年間の総額や、制服・教材・修学旅行費などの実費の記載がない','E1 ｜ /admission/fee.pdf'],
+     ['gap','欠落','比較2校は総額シミュレーターを設置しており、比較の土俵に乗れていない','比較校の公開ページより'],
+     ['ok','支持','進学実績は3年分が整理され、出口の水準は把握できる','D1 ｜ /course/results/'],
+     ['warn','要確認','教育理念が抽象語中心で、投じる費用に対する特色が読み取りにくい','A1 ｜ 最終更新 2021-04-01']]}
+};
+let pType='e6',pGen='f';
+function renderPersona(){
+  const p=PERSONA[pType+pGen];
+  document.getElementById('pmeta').textContent=p.meta;
+  document.getElementById('pquote').innerHTML=p.q;
+  document.getElementById('phyps').innerHTML=p.h.map(x=>
+   `<div class="hyp"><span class="tag t-${x[0]} b">${x[1]}</span><div>${x[2]}<span class="src">${x[3]}</span></div></div>`).join('');
+  const f=document.getElementById('genF'),m=document.getElementById('genM');
+  if(pType==='pa'){f.textContent='母親';m.textContent='父親';}else{f.textContent='女子';m.textContent='男子';}
+}
+document.querySelectorAll('#typeSeg button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#typeSeg button').forEach(x=>x.setAttribute('aria-pressed','false'));
+  b.setAttribute('aria-pressed','true');pType=b.dataset.t;renderPersona();});
+document.querySelectorAll('#genSeg button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#genSeg button').forEach(x=>x.setAttribute('aria-pressed','false'));
+  b.setAttribute('aria-pressed','true');pGen=b.dataset.g;renderPersona();});
+renderPersona();
+document.getElementById('qsBtn').onclick=function(){
+  const box=document.getElementById('qsBox');box.classList.toggle('on');
+  this.textContent=box.classList.contains('on')?'設問案を閉じる':'検証用の設問を作る';};
+
+/* ===== 改善アクション ===== */
+const ACTS=[
+ {id:'AC-01',pri:'高',dif:'低',src:'03',t:'説明会ページに申込ボタンを置く',s:'本文中のテキストリンクを、画面上部のボタンに変える',
+  why:'申込フォームまで4クリック。比較校の最短は2クリックです。途中で外部予約サイトに移り、見た目が切り替わるため、そこでも迷いが生じます。外部予約サービスの利用は業界の標準的な形なので、変えるべきは遷移前の導線だけです。',
+  how:['説明会ページの最上部に「この回に申し込む」ボタンを設置','日程ごとに個別のボタンを置き、どの回か迷わせない','満席の回は灰色にして状態を明示','外部サイトへ移る直前に「次の画面で日時を選びます」と一言添える'],
+  copy:'この回に申し込む　▶　8月24日（日）10:00　体験入学＋部活動見学　残席あり',
+  own:'広報部',from:'MS-01 導線の実測',
+  qa:{'予約システムごと変えるべきですか':'その必要はありません。学校向けの予約・出願サービスは1社が全国の大半を占めており、外部サイトへ遷移すること自体はほぼ全校に共通の形です。差がついているのは遷移前の導線で、ボタンの位置と数で大半が決まります。移行の負担に見合いません。',
+      'ボタンの文言は他に何が考えられますか':'「申し込む」より「空き状況を見る」のほうが押されやすい場合があります。決めきれていない層にとって、確認するだけという心理的負担の低さが効くためです。ただし押した先が申込フォームだと落差が生じるので、日程一覧を挟む構成とセットで使ってください。'}},
+
+ {id:'AC-02',pri:'高',dif:'低',src:'02',t:'アクセスページに通学の情報を足す',s:'保護者が学習面以外で最も重視する項目',
+  why:'最寄駅からの徒歩分数と地図はありますが、主要駅からの所要時間・利用可能路線・通学圏の説明がありません。中学受験の調査では「通学が便利」が保護者の最重視項目で、6割近くが挙げています。地図だけでは、その判断ができません。',
+  how:['主要3〜5駅からの所要時間を表で示す','利用可能な路線と乗り換え回数を明記','在校生の通学エリア分布を大まかに示す','スクールバスや自転車通学の可否を書く'],
+  copy:'主要駅からの所要時間｜○○駅から28分（乗換1回）／△△駅から34分（乗換なし）／□□駅から19分（乗換なし）',
+  own:'広報部',from:'F6 欠落マップ',
+  qa:{'通学時間が長いことが分かると不利になりませんか':'所要時間は乗換案内で誰でも調べられるため、書かないことで隠せるものではありません。むしろ書いていないと、保護者は最も遠い想定で判断するか、候補から外します。通学エリアの分布を併記すれば「その距離から通っている生徒が実際にいる」という事実が伝わります。'}},
+
+ {id:'AC-03',pri:'高',dif:'低',src:'02',t:'出展する合同相談会の日程を自校サイトに載せる',s:'比較4校すべてが掲載、本校のみ未掲載',
+  why:'自校が出展する進学フェア・合同相談会の日程がサイトにありません。比較4校はいずれも掲載しており、うち1校は年間14件を一覧化しています。合同フェアは情報源として利用が伸びており、来校型の説明会に踏み切れない家庭の入口になります。すでに出展は決まっているので、書くだけの作業です。',
+  how:['出展予定のフェアを日付順に一覧化','会場名と時間を明記し、主催者ページへリンク','校内の説明会日程と同じページに並べて置く','終了分は消さず「終了」表示にして実績を見せる'],
+  copy:'校外の相談会でもお会いできます｜8月29日（土）〜30日（日）東京国際フォーラム　私立学校展',
+  own:'広報部',from:'F4 欠落マップ',
+  qa:{'外部イベントを自校サイトに載せる意味がありますか':'あります。来校の予約は心理的な負担が大きく、まずフェアで話を聞きたい家庭が一定数います。そこを取りこぼさないための入口です。加えて、出展数が多いこと自体が活動量の証明として読まれます。'}},
+
+ {id:'AC-04',pri:'高',dif:'中',src:'04',t:'説明会ページに構造化データを設定する',s:'検索結果に日程が直接表示されるようにする',
+  why:'比較4校中3校は説明会情報を構造化データで記述しており、検索結果に日程が並んで表示されています。本校の検索結果には日程も申込先も出ておらず、クリックされる前の段階で差がついています。ページの見た目は変わらず、記述を追加するだけです。',
+  how:['各回の日程・開始時刻・会場・申込URLを Event 形式で記述','あわせて学校の基本情報を EducationalOrganization 形式で記述','記述後、リッチリザルトテストで表示を確認','翌年以降は日付の差し替えのみで運用できる形にしておく'],
+  copy:'—（表示を制御する記述のため、文案は不要）',
+  own:'制作会社・広報部',from:'SE-02 学校名で探されたときの見え方',
+  qa:{'制作会社に何と依頼すればいいですか':'「説明会ページに schema.org の Event 構造化データを JSON-LD で実装してほしい」と伝えれば通じます。あわせて、日程を更新するたびに記述も更新される仕組みにしてほしい旨を添えてください。手作業での更新にすると、翌年に必ず抜けます。'}},
+
+ {id:'AC-05',pri:'高',dif:'中',src:'02',t:'探究学習の紹介ページを新設する',s:'比較4校すべてにあり、本校にない情報',
+  why:'実際に探究発表会を実施しているにもかかわらず、サイト上ではPDF内に1行あるだけで、実施していないのと同じ状態です。取り組みが足りないのではなく、書いていないだけです。実在校では「自調自考論文」「総合学習」のように学校独自の名称を付けて前面に出す例が多く、名称そのものが特色として機能しています。',
+  how:['昨年度の発表会の写真とテーマ一覧を掲載','中1から高2までの6年間の流れを1枚の図に','生徒の発表テーマを10件そのまま並べる（説明文は不要）','ページのtitleに「探究学習」を含める（独自名称だけでは検索されません）'],
+  copy:'高校2年・生徒テーマより｜「駅前商店街のシャッター率はなぜ下がらないのか」「校内の紙使用量を3割減らす方法」',
+  own:'教務部・広報部',from:'B2 欠落マップ',
+  qa:{'独自の名称を付けたほうがいいですか':'付けるなら、一般的な語との併記にしてください。独自名称だけだと検索で見つかりません。実在校でも「超"実践型"の探究」のように、独自性と一般語を組み合わせる形が取られています。',
+      '教員の負担が心配です。最小構成はどこまでですか':'写真3点とテーマ一覧10件で成立します。解説文は不要です。むしろ生徒のテーマをそのまま並べたほうが、学校が書いた紹介文より説得力があります。'}},
+
+ {id:'AC-06',pri:'高',dif:'中',src:'02',t:'在校生の言葉を2本載せる',s:'比較4校すべてが掲載、本校のみ未掲載',
+  why:'ペルソナ仮説の小学6年生・中学3年生の双方で最も強く出た欠落です。志望校選びでは「在校生の雰囲気」が受験生・保護者ともに上位に挙がりますが、本校には生徒本人の言葉が一つもありません。独立ページである必要はなく、実在校でも探究や留学の紹介ページ内に置く形が主流です。',
+  how:['中1と高1から1名ずつ。学年差があるほうが6年間が伝わります','高校からの入学生を1名入れると、高校募集の不安に同時に応えられます','質問は3つだけ：入学前の不安／今の1日／受験生に伝えたいこと','専用ページを作らず、探究や部活動のページ内に置いてもよい'],
+  copy:'中学1年・Aさん｜「入る前は勉強についていけるか不安でした。今は放課後に先生へ質問しに行くのが習慣になっています。」',
+  own:'広報部',from:'C6 欠落マップ',
+  qa:{'どんな生徒を選べばいいですか':'成績上位者や生徒会役員を選びがちですが、効果は下がります。読み手は「自分と同じくらいの生徒」を探しているためです。入学時に不安を抱えていた生徒のほうが、共感の面では機能します。',
+      '文章はこちらで整えてよいですか':'誤字や意味の通らない部分の修正までに留めてください。整えすぎると学校が書いた文章に見え、効果が失われます。話し言葉の残る文のほうが本人の言葉として読まれます。'}},
+
+ {id:'AC-07',pri:'高',dif:'中',src:'02',t:'学費ページをPDFからページ本文へ移す',s:'保護者が最も長く見て、最も離脱する箇所',
+  why:'学費はPDF1枚のみで、スマートフォンでは拡大しないと読めません。奨学金・特待の条件も同じPDF内にあり、探せない状態です。実在校の検証では、学費ページを「学納金」と名付けている学校で「学校名 学費」の検索順位が4位に沈み、上位をWikipediaと自校トップが占めていました。名称と形式の両方が原因になります。',
+  how:['初年度納入金・年間費用の表をHTMLで掲載','奨学金・特待は条件ごとに見出しを分け、別ページにする','制服・教材・修学旅行費など「PDFに載っていない実費」も併記','ページ名は「学費」を含める（学納金・諸費用だけでは検索されません）'],
+  copy:'6年間でかかる費用の目安（授業料・施設費・積立金の合計。制服等の実費を含みます）',
+  own:'事務室・広報部',from:'E1 欠落マップ',
+  qa:{'総額を出すと高く見えて敬遠されませんか':'総額を出さない場合、保護者は最大値を想定するか、比較検討の対象から外します。比較2校がすでに提示している以上、出さないことが不利に働きます。就学支援金・奨学金の適用後の目安を併記すれば、印象は変わります。',
+      'ページ名は「学納金」のままではだめですか':'校内の正式名称としては問題ありませんが、検索する人は「学費」と入力します。見出しは「学費（学納金）」のように併記するのが安全です。'}},
+
+ {id:'AC-17',pri:'高',dif:'低',src:'04',t:'受験情報サイトに載っている自校の情報を更新依頼する',s:'数年前の説明会日程が残ったまま上位に出ている',
+  why:'自校について検索した人が最初に見るのは、自校のページとは限りません。実在校の検証では、受験情報サイトに数年前の終了済み説明会日程が残ったまま検索上位に出ている例が確認できました。掲載元の多くは学校からの情報更新を受け付けています。自校サイトを直しても消えない領域なので、別途の対応が必要です。',
+  how:['自校名で検索し、上位20件に出る外部サイトを一覧化する','説明会日程・学費・入試要項の記載が最新かを確認する','古い情報を載せている掲載元に更新を依頼する','年1回、募集要項の確定時期にまとめて行う運用にする'],
+  copy:'貴サイトに掲載されている本校の学校説明会日程について、2026年度の内容へ更新をお願いいたします。最新の日程は本校サイトの下記ページに掲載しております。',
+  own:'広報部',from:'SE-04 設定状況の点検',
+  qa:{'どのサイトに依頼すればいいですか':'自校名で検索して上位に出る順に対応してください。塾のポータルサイトと受験情報サイトが中心になります。口コミサイトは記述の削除に応じないのが通常なので、対象から外して構いません。',
+      '毎年やる必要がありますか':'募集要項が確定する時期に年1回まとめて行えば十分です。日程が変わるタイミングと合わせると漏れが減ります。'}},
+
+ {id:'AC-18',pri:'中',dif:'低',src:'04',t:'予約システム側のページに学校の説明を足す',s:'予約ページ自体が検索対象になっている',
+  why:'外部の予約サービスのイベントページが、学校サイトとは別に検索結果へ出ています。そこから直接入った人は、学校の説明を一度も読まずに申込画面に着きます。予約サービス側にも学校紹介の記入欄があるため、埋めておけば取りこぼしが減ります。',
+  how:['予約サービスの管理画面で学校紹介文と写真を設定する','各イベントの説明文に、当日の内容と対象学年を明記する','学校サイトの該当ページへのリンクを入れる'],
+  copy:'本校について詳しくは学校サイトをご覧ください。当日は授業体験と部活動見学を予定しています（小学5・6年生対象）。',
+  own:'広報部',from:'SE-04 設定状況の点検',
+  qa:{'予約サービスの設定を触る権限がありません':'イベント登録を担当している教員か、導入時の窓口担当者に確認してください。学校ごとの管理画面で設定できる項目です。'}},
+
+ {id:'AC-08',pri:'中',dif:'低',src:'04',t:'ページごとのtitleとmeta descriptionを整える',s:'128ページ中41ページのtitleが学校名のみ',
+  why:'titleが学校名のみのページは、検索結果に並んだときに何のページか判別できません。meta description が未設定の96ページでは、説明文が自動生成され、実在校の検証ではグローバルナビの項目名が延々と並ぶ状態のページも確認できました。何が書かれたページか判別できません。ページの見た目は変わりません。',
+  how:['入試・説明会・学費・進路の主要20ページから着手','titleは「ページ内容｜学校名」の形式に統一','校内の呼称ではなく、検索される語を使う','descriptionは、そのページで分かることを80字程度で書く'],
+  copy:'学校説明会・体験入学の日程｜翠陵ヶ丘中学校・高等学校　／　2026年度の説明会・体験入学の日程と申込方法をご案内します。授業体験、部活動見学、個別相談も実施しています。',
+  own:'広報部',from:'SE-04 設定状況の点検',
+  qa:{'全128ページ分を書くのは無理があります':'必要ありません。検索されるページは限られています。入試・説明会・学費・進路・部活動の主要20件を整えるだけで、検索経由の流入の大半をカバーできます。'}},
+
+ {id:'AC-09',pri:'中',dif:'低',src:'03',t:'お知らせを種類ごとに分ける',s:'更新はしているが、伝わる記事が埋もれている',
+  why:'直近90日の更新12件のうち9件が休校連絡などの事務連絡です。学校の様子が伝わる記事は3件しかありません。実在校では「部活動報告」「留学レポート」「事務室からのお知らせ」のようにカテゴリを分けて運用しており、件数を増やす前に分けるだけで印象が変わります。',
+  how:['お知らせにカテゴリを設定する（学校の様子／部活動／事務連絡）','トップページには事務連絡以外を表示する','行事の写真は翌日までに載せる運用を決める'],
+  copy:'学校の様子　／　部活動報告　／　お知らせ・事務連絡',
+  own:'広報部',from:'MS-04 更新の実態',
+  qa:{'在校生保護者向けの連絡が見つけにくくなりませんか':'在校生保護者は目的を持って探すため、タブが分かれていても到達できます。むしろ受験生の家庭が最初に見る画面から事務連絡が消えることの効果が大きくなります。'}},
+
+ {id:'AC-10',pri:'中',dif:'中',src:'02',t:'施設・設備の紹介ページを作る',s:'比較4校すべてが独立ページを持つ',
+  why:'校舎外観の写真が2点あるのみで、教室・図書室・実験室・体育施設・食堂の紹介がありません。受験生が重視する「学習に集中できる環境」に直結する項目で、近年その比重が上がっています。実在校では360度のキャンパスツアーを設置する例も出ています。',
+  how:['教室・図書室・実験室・体育館・食堂の5か所から着手','生徒が使っている場面で撮る（無人の写真は情報量が少ない）','各写真に一言だけ説明を添える','説明会の校内見学ルートをそのまま撮ればページになる'],
+  copy:'図書室｜蔵書3万2千冊。放課後は自習席として開放しています（19時まで）',
+  own:'広報部',from:'C3 欠落マップ',
+  qa:{'古い校舎なので見せたくありません':'新しさが評価されているわけではありません。読み手が知りたいのは「どこで何をして過ごすのか」です。使われている場面が写っていれば、築年数は主要な判断材料になりません。'}},
+
+ {id:'AC-11',pri:'中',dif:'中',src:'02',t:'塾・教育関係者向けのページを作る',s:'比較4校中3校が対応',
+  why:'塾・教育関係者を対象とした説明会の案内がありません。比較4校中3校は日程を公開し、うち1校は独立ページを設けています。塾は受験生に学校を薦める側であり、そこに向けた情報が一つもない状態です。',
+  how:['塾対象説明会の日程を1ページにまとめる','入試の変更点・出題方針を要約したPDFを置く','担当窓口と連絡先を明記する'],
+  copy:'塾・教育関係者の皆様へ｜2026年度 塾対象説明会のご案内',
+  own:'入試広報部',from:'F3 欠落マップ',
+  qa:{'説明会を新設する余力がありません':'既存の説明会に塾関係者枠を設けるだけでも成立します。重要なのは、塾に向けた情報がサイト上に存在することです。'}},
+
+ {id:'AC-12',pri:'中',dif:'高',src:'04',t:'説明会ページのURLを年度で変えない形にする',s:'毎年 /briefing2026/ のように新規作成されている',
+  why:'年度ごとにURLが変わると、前年までに他サイトから貼られたリンクや検索での評価がすべてリセットされます。毎年ゼロから積み直している状態です。URLを固定し、中身だけを差し替える形にすれば、年を追うごとに順位が安定します。',
+  how:['/admission/briefing/ を恒久URLとし、毎年内容を差し替える','過去年度分を残す場合は下の階層に置く','旧URLからは301リダイレクトを設定する'],
+  copy:'—（URL設計のため、文案は不要）',
+  own:'制作会社・広報部',from:'SE-04 設定状況の点検',
+  qa:{'すでに何年分もURLが分かれています。今からでも間に合いますか':'間に合います。今年の分を恒久URLで作り、過去分からリダイレクトを設定するだけで、来年以降は積み上がっていきます。過去分を完全に整理する必要はありません。'}},
+
+ {id:'AC-13',pri:'中',dif:'高',src:'02',t:'教育理念のページを具体に接続する',s:'志望校選びで最も重視される項目',
+  why:'理念ページは2021年から更新されておらず、抽象語で構成されています。同じ言葉は比較4校のページにも登場しており、区別がつきません。中学受験の調査では「学校の教育方針・校風」が学習面で最も重視される項目で、受験生の8割弱・保護者の8割半が挙げています。文言を変える必要はなく、対応する取り組みへリンクするだけで機能します。',
+  how:['理念の各項目に、対応する行事・授業・進路指導のページをリンク','「自主自律」→ 生徒会運営の実例、といった対応表を作る','文言そのものの改訂は不要（校内合意に時間がかかるため）','あわせてスクールポリシー（3つの方針）の掲載も検討する'],
+  copy:'自主自律 ─ 文化祭の企画・予算・運営は、すべて生徒会が担当します。［詳しく見る］',
+  own:'教頭・広報部',from:'A1 欠落マップ',
+  qa:{'建学の精神は変えられません。それでも改善できますか':'変える必要はありません。問題は言葉そのものではなく、その言葉が何を指すのかが示されていないことです。建学の精神はそのままに、各項目の下に実際の取り組みを1つずつ添えるだけで、他校との違いが立ち上がります。',
+      '対応づけは誰が判断すべきですか':'広報部だけで決めると校内から異論が出ます。教頭または各分掌の主任に「この理念に当たる取り組みを1つ挙げてください」と依頼する形が、合意を取りながら進められます。'}},
+
+ {id:'AC-14',pri:'中',dif:'高',src:'02',t:'入試データの公開を検討する',s:'公開校が少ないため、差別化になりうる領域',
+  why:'当初これを「他校にあって本校にない欠落」と扱っていましたが、調査の結果は逆でした。受験者数・実質倍率を公開している学校は比較4校中1校で、業界全体でも多数派ではありません。一方、塾や受験情報サイトは各校の数値を集計して公開しており、非公開でも数字は流通しています。つまり本校が公開すれば、少数派として目立つ側に回れます。広報部だけでは決められないため、入試委員会での協議が必要です。',
+  how:['まず過去3年分の受験者数・合格者数・実質倍率を集計する','公開範囲（全回か主要回のみか）を入試委員会に諮る','出願期間中の出願状況の速報公開もあわせて検討する','公開する場合は入試要項ページと同じ階層に置く'],
+  copy:'—（公開方針が決まってから作成）',
+  own:'入試委員会',from:'F5 欠落マップ',
+  qa:{'倍率が低い回があり、公開に反対が出そうです':'反対意見の中心は「低倍率が知られると敬遠される」という点でしょう。ただし塾は模試の追跡データから各校の実倍率をおおむね把握しており、受験情報サイトも集計値を公開しています。公開しないことで隠せているわけではなく、学校側の説明機会が失われている状態に近いと考えられます。',
+      '委員会に出す資料はどう作ればいいですか':'「他校もやっている」という論法は使えません。公開校は少数だからです。代わりに、塾や受験情報サイトが本校の数値をすでに掲載している事実を示し、そこに学校側の説明を添えられるかどうかという論点で整理してください。'}},
+
+ {id:'AC-15',pri:'低',dif:'低',src:'04',t:'画像に代替テキスト（alt）を設定する',s:'186点中149点が未設定',
+  why:'画像が何を写しているかの説明がないため、検索の対象になっていません。行事や部活動の写真は本校の強みであるにもかかわらず、画像検索からの流入がない状態です。音声読み上げにも対応できていません。',
+  how:['行事・部活動・制服・施設の写真から着手','「体育祭の応援合戦」のように、写っている内容をそのまま書く','装飾目的の画像は空のaltを設定して読み飛ばさせる'],
+  copy:'体育祭で応援合戦を行う中学3年生（2025年9月）',
+  own:'広報部',from:'SE-04 設定状況の点検',
+  qa:{'149点すべてに設定する必要がありますか':'ありません。行事・部活動・制服・校舎の写真から着手してください。バナーやアイコンは装飾目的のため、空のaltで読み飛ばさせる扱いが適切です。'}},
+
+ {id:'AC-16',pri:'低',dif:'低',src:'02',t:'SNSの媒体と導線を見直す',s:'アカウントはあるが導線がフッターのみ',
+  why:'Instagramのみを運用し、サイトからの導線はフッターだけです。実在校ではInstagram・YouTube・LINE・Facebookを併用する例が多く、特にLINEは説明会案内の配信経路として機能しています。投稿を増やす前に、まず見つけてもらう必要があります。',
+  how:['トップページのファーストビュー内にアイコンを配置','説明会の案内を届けるならLINE公式アカウントの開設を検討','投稿頻度が上がってから、直近3投稿の埋め込み表示に切り替える'],
+  copy:'日々の様子はInstagramで、説明会のご案内はLINEでお届けしています',
+  own:'広報部',from:'G2 欠落マップ',
+  qa:{'媒体を増やすと運用が回りません':'増やす前に導線を直すのが先です。そのうえで1つ足すならLINEを推奨します。投稿頻度を求められず、説明会前の告知に絞って使えるためです。'}}
+];
+
+const GRP={
+ pri:{key:'pri',order:['高','中','低'],
+  t:{'高':['優先度 高','比較4校すべてが公開／申込導線上の離脱点'],'中':['優先度 中','一部の比較校が公開／間接的に影響'],'低':['優先度 低','整備済みだが改善の余地がある']}},
+ dif:{key:'dif',order:['低','中','高'],
+  t:{'低':['難易度 低','広報部の判断で完結し、素材も揃っている'],'中':['難易度 中','他分掌との調整、または新規素材の作成が必要'],'高':['難易度 高','委員会・管理職の決裁、または外部委託が必要']}}
+};
+let grpBy='pri',srcF='all';
+
+/* 対応済み状態（この画面内で共有。01のSM-04と06の両方から同じ状態を参照・更新する） */
+const actionStatus={};
+function isDone(id){ return actionStatus[id]===true; }
+function setDone(id,val){
+  actionStatus[id]=val;
+  renderSM04();
+  renderActs();
+}
+
+const SM04_IDS=['AC-01','AC-02','AC-03','AC-05','AC-06'];
+function renderSM04(){
+  const wrap=document.getElementById('sm04list');
+  if(!wrap)return;
+  wrap.innerHTML=SM04_IDS.map(id=>{
+    const a=ACTS.find(x=>x.id===id);
+    const done=isDone(id);
+    return `<div class="todo ${done?'done':''}">
+      <input type="checkbox" aria-label="対応済みにする" data-sm04="${id}" ${done?'checked':''}>
+      <div><div class="t">${a.t}</div><div class="d">${a.id} ／ 難易度 ${a.dif} ・ ${a.own}</div></div>
+      <div class="when">${done?'対応済み':'優先 '+a.pri}</div>
+    </div>`;
+  }).join('');
+  wrap.querySelectorAll('input[data-sm04]').forEach(cb=>{
+    cb.onchange=()=>setDone(cb.dataset.sm04,cb.checked);
+  });
+}
+
+function renderActs(){
+  const g=GRP[grpBy];
+  const list=ACTS.filter(a=>srcF==='all'||a.src===srcF);
+  const ab=document.getElementById('actbody');
+  ab.innerHTML='';
+  const doneCountEl=document.getElementById('actDoneCount');
+  if(doneCountEl){
+    const n=ACTS.filter(a=>isDone(a.id)).length;
+    doneCountEl.textContent=`対応済み ${n} / ${ACTS.length}件`;
+  }
+  g.order.forEach(k=>{
+    const items=list.filter(a=>a[g.key]===k);
+    if(!items.length)return;
+    const h=document.createElement('div');
+    h.className='ghead';
+    h.innerHTML=`<span class="gt">${g.t[k][0]}</span><span class="gd">${g.t[k][1]}</span><span class="gc">${items.length}件</span>`;
+    ab.appendChild(h);
+    items.forEach(a=>{
+      const d=document.createElement('div');
+      const done=isDone(a.id);
+      d.className='act'+(done?' done':'');d.dataset.open='0';
+      const other = grpBy==='pri' ? `<span class="tag t-neu">難易度 ${a.dif}</span>` : `<span class="tag t-neu">優先度 ${a.pri}</span>`;
+      const chips=Object.keys(a.qa).map(q=>`<button class="chip" data-q="${q}">${q}</button>`).join('');
+      d.innerHTML=`
+        <button class="act-h" aria-expanded="false">
+          <span class="aid">${a.id}</span>
+          <span class="act-t">${a.t}<small>${a.s}</small></span>
+          <span class="act-tags">
+            <label class="act-status ${done?'done':''}" onclick="event.stopPropagation()">
+              <input type="checkbox" ${done?'checked':''} data-status="${a.id}">${done?'対応済み':'対応済みにする'}
+            </label>
+            ${other}<span class="chev">▶</span>
+          </span>
+        </button>
+        <div class="act-b">
+          <h4>この項目を上位に置いた根拠</h4><p>${a.why}</p>
+          <h4>実施内容</h4><ul>${a.how.map(x=>`<li>${x}</li>`).join('')}</ul>
+          <h4>文案</h4><div class="copy">${a.copy}</div>
+          <div class="meta"><span>PRIORITY <b>${a.pri}</b></span><span>DIFFICULTY <b>${a.dif}</b></span><span>想定担当 <b>${a.own}</b></span><span>SOURCE <b>${a.from}</b></span></div>
+          <div class="ask">
+            <div class="ah">照会 ／ 校内事情を踏まえた確認</div>
+            <div class="ab">
+              <div class="chips">${chips}</div>
+              <div class="askbox">
+                <input type="text" placeholder="校内の事情を入力（例：来年サイトを全面改修する予定です）">
+                <button class="btn">照会</button>
+              </div>
+              <div class="answer"></div>
+            </div>
+          </div>
+        </div>`;
+      const hd=d.querySelector('.act-h');
+      hd.onclick=()=>{const o=d.dataset.open==='1';d.dataset.open=o?'0':'1';hd.setAttribute('aria-expanded',String(!o));};
+      const statusCb=d.querySelector('input[data-status]');
+      statusCb.onclick=e=>e.stopPropagation();
+      statusCb.onchange=()=>setDone(a.id,statusCb.checked);
+      const ansEl=d.querySelector('.answer');
+      const show=(q,text)=>{
+        ansEl.classList.remove('on');
+        ansEl.innerHTML=`<div class="qline">${q}</div><div>照会中…</div>`;
+        ansEl.classList.add('on');
+        setTimeout(()=>{
+          ansEl.innerHTML=`<div class="qline">${q}</div><div>${text}</div>
+            <div class="foot">本校サイトの走査結果および比較4校の公開情報に基づく回答です。校内事情に関わる判断は担当者の確認を経てください。</div>`;
+        },500);
+      };
+      d.querySelectorAll('.chip').forEach(c=>c.onclick=()=>show(c.dataset.q,a.qa[c.dataset.q]));
+      const inp=d.querySelector('.askbox input'),snd=d.querySelector('.askbox .btn');
+      const free=()=>{
+        const q=inp.value.trim();if(!q)return;
+        show(q,`ご事情を踏まえると、この項目の位置づけは変わります。「${a.t}」は現行サイトの構造を変えずに実施できる範囲に収めてあり、難易度は「${a.dif}」と判定しています。改修や体制変更の予定がある場合は、その計画に取り込むほうが手戻りが減ります。ただし計画の実施が次年度以降になる場合、今年度の募集には効果が及びません。最小構成のみ先行して実施する進め方も検討できます。`);
+        inp.value='';
+      };
+      snd.onclick=free;inp.onkeydown=e=>{if(e.key==='Enter')free();};
+      ab.appendChild(d);
+    });
+  });
+}
+document.querySelectorAll('#grpSel button[data-g]').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#grpSel button[data-g]').forEach(x=>x.setAttribute('aria-pressed','false'));
+  b.setAttribute('aria-pressed','true');grpBy=b.dataset.g;renderActs();});
+document.querySelectorAll('#grpSel button[data-s]').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#grpSel button[data-s]').forEach(x=>x.setAttribute('aria-pressed','false'));
+  b.setAttribute('aria-pressed','true');srcF=b.dataset.s;renderActs();});
+renderActs();
+renderSM04();
+
+document.getElementById('sheetActs').innerHTML=
+ '<tr><th>ID</th><th>内容</th><th>優先度</th><th>難易度</th><th>想定担当</th></tr>'+
+ ACTS.filter(a=>a.pri==='高').map(a=>`<tr><td>${a.id}</td><td>${a.t}</td><td>${a.pri}</td><td>${a.dif}</td><td>${a.own}</td></tr>`).join('');
+
+document.querySelectorAll('#blkChecks input').forEach(c=>{
+  c.onchange=()=>document.getElementById(c.dataset.b).classList.toggle('off',!c.checked);});
+
+/* ===== ナビ ===== */
+const T={
+ home:['01 ／ SUMMARY','診断サマリー','2026年8月3日 実施 ／ 比較対象4校 ／ 情報31項目'],
+ gap:['02 ／ GAP MAP','欠落マップ','受験生・保護者・塾が探す31項目 × 自校＋比較4校（実在6校の構造をもとに設計）'],
+ meas:['03 ／ MEASUREMENT','導線の実測','実在6校の実測値で中央値を検証しています'],
+ seo:['04 ／ DISCOVERY','発見のされ方','まだ学校名を知らない層に届いているか'],
+ persona:['05 ／ PERSONA','ペルソナ仮説','6つの目線でサイトを読み直します'],
+ act:['06 ／ ACTION','改善アクション','18件。優先度・難易度でグループ化。各項目に照会欄があります'],
+ sheet:['07 ／ REPORT','レポート出力','必要な項目だけを選んで書き出せます']
+};
+function go(p){
+  document.querySelectorAll('.nav button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.p===p)));
+  document.querySelectorAll('.panel').forEach(x=>x.classList.remove('on'));
+  document.getElementById('p-'+p).classList.add('on');
+  document.getElementById('code').textContent=T[p][0];
+  document.getElementById('ttl').textContent=T[p][1];
+  document.getElementById('sub').textContent=T[p][2];
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>go(b.dataset.p));
+document.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>go(b.dataset.goto));
+</script>
+</body>
+</html>
