@@ -11,8 +11,11 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "generate:demo": "node scripts/generate-demo.mjs",
-    "scan": "tsx scripts/scan.ts",
-    "scan:due": "tsx scripts/scan-due.ts"
+    "scan": "tsx --env-file-if-exists=.env.local scripts/scan.ts",
+    "scan:due": "tsx --env-file-if-exists=.env.local scripts/scan-due.ts",
+    "init:env": "tsx scripts/init-env.ts",
+    "db:migrate": "tsx --env-file-if-exists=.env.local scripts/db-migrate.ts",
+    "doctor": "tsx --env-file-if-exists=.env.local scripts/doctor.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
@@ -20,12 +23,14 @@
     "@supabase/supabase-js": "^2.112.2",
     "cheerio": "^1.2.0",
     "next": "16.3.0",
+    "pg": "^8.22.0",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.21.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

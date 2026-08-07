@@ -7,6 +7,7 @@
 | ファイル | 役割 |
 |---|---|
 | `README.md` | この文書。最初に読む |
+| `docs/SETUP.md` | 実際の学校データで動かすまでの手順書 |
 | `handoff.md` | 仕様書本体。データモデル・判定ロジック・画面仕様・Phase分割 |
 | `prototype.html` | UIの正典。ブラウザで開いて操作する（ビルド不要の単一HTML） |
 
@@ -70,12 +71,21 @@
 
 ```bash
 npm install
-cp .env.example .env.local   # 未設定でもデモデータで起動する
 npm run dev                  # http://localhost:3000
 ```
 
-`.env.local` を設定しない場合は、`prototype.html` 由来のサンプルデータで動作する。
-その状態では画面上部に「サンプルデータを表示しています」と明示される。
+設定なしで全画面が動く。その場合は `prototype.html` 由来のサンプルデータが表示され、
+画面上部に「サンプルデータを表示しています」と明示される。
+
+実際の学校データで動かす手順は **[docs/SETUP.md](docs/SETUP.md)** にまとめてある。
+外部サービスの画面でしか取れないものと、学校ごとに決めるものだけが手作業で、
+残りは次のコマンドに寄せてある。
+
+```bash
+npm run init:env    # .env.local の雛形を作る（CRON_SECRET は生成される）
+npm run db:migrate  # マイグレーションとシードを適用する
+npm run doctor      # どこまで設定できているかを点検する
+```
 
 | コマンド | 内容 |
 |---|---|
@@ -85,20 +95,24 @@ npm run dev                  # http://localhost:3000
 | `npm run scan -- --url https://example.ed.jp --name 学校名 --role self` | 1校の走査と判定を実行 |
 | `npm run scan:due` | 設定のスケジュールに従い、いま走査すべき学校を一覧表示（`-- --run` で実行） |
 | `POST /api/cron/scan` | 同じ処理の自動実行版。`CRON_SECRET` による Bearer 認証（`vercel.json` の cron が1時間ごとに起動） |
+| `npm run init:env` | `.env.local` の雛形を作る。`CRON_SECRET` は生成する |
+| `npm run db:migrate` | 未適用のマイグレーションを順に適用し、シードを流す（`-- --dry` で確認のみ） |
+| `npm run doctor` | 設定・接続・マイグレーション・走査実績を点検する |
 | `npm run generate:demo` | `prototype.html` からデモデータを再生成 |
 | `npx tsx scripts/generate-criteria-seed.ts` | 31項目のシード SQL を再生成 |
 
 ## Supabase の初期化
 
 ```bash
-psql "$DATABASE_URL" -f supabase/migrations/0001_init.sql
-psql "$DATABASE_URL" -f supabase/migrations/0002_rls.sql
-psql "$DATABASE_URL" -f supabase/migrations/0003_settings.sql
-psql "$DATABASE_URL" -f supabase/migrations/0004_personas.sql
-psql "$DATABASE_URL" -f supabase/migrations/0005_scan_runs.sql
-psql "$DATABASE_URL" -f supabase/migrations/0006_auth.sql
-psql "$DATABASE_URL" -f supabase/seed/criteria.sql
+npm run db:migrate
 ```
+
+`supabase/migrations/` を番号順に適用し、調査項目31件のシードを流す。適用済みは
+`schema_migrations` に記録するので、再実行しても二重には流れない。1ファイル=1トランザクションで、
+途中で失敗したファイルは丸ごと巻き戻る。
+
+適用済みの SQL を後から編集すると次回の実行で止まる。DB には既に流れたものが残っており、
+ファイルと実際の状態が食い違うため。**変更は新しい番号のファイルとして追加する。**
 
 `0002_rls.sql` が組織単位の分離（7章）を、`0006_auth.sql` が新規登録の経路
 （学校法人を作る → 自分を管理者にする → 学校を登録する）を実装している。

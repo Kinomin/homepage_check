@@ -7,6 +7,20 @@
 create type persona_stage as enum ('e6', 'j3', 'parent');
 create type persona_gender as enum ('f', 'm');
 
+-- CHECK 制約にサブクエリは書けないので、判定を immutable な関数に出す。
+-- jsonb_array_elements は集合を返すため、制約式に直接は置けない。
+create or replace function hypotheses_all_have_evidence(value jsonb)
+returns boolean
+language sql
+immutable
+as $$
+  select coalesce(
+    bool_and(jsonb_array_length(coalesce(item -> 'criterionIds', '[]'::jsonb)) > 0),
+    true  -- 仮説が0件のときは通す（生成前の状態）
+  )
+  from jsonb_array_elements(value) as item;
+$$;
+
 create table personas (
   id uuid primary key default gen_random_uuid(),
   scan_id uuid references scans (id) on delete cascade,
@@ -18,13 +32,7 @@ create table personas (
   generated_at timestamptz not null default now(),
 
   -- 根拠のない仮説を保存しない（handoff.md 5章 05）
-  constraint hypotheses_have_evidence check (
-    not exists (
-      select 1
-      from jsonb_array_elements(hypotheses) as item
-      where jsonb_array_length(coalesce(item -> 'criterionIds', '[]'::jsonb)) = 0
-    )
-  )
+  constraint hypotheses_have_evidence check (hypotheses_all_have_evidence(hypotheses))
 );
 
 create index personas_scan_idx on personas (scan_id, generated_at desc);
