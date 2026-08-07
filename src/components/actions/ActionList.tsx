@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 
+import { InquiryBox } from '@/components/actions/InquiryBox';
+import type { ThreadMessage } from '@/lib/data/thread-repository';
 import { useActionStatus } from '@/lib/data/useActionStatus';
 import { sourceLabel } from '@/lib/screens';
 import {
@@ -28,7 +30,17 @@ type SourceFilter = ActionSource | 'all';
  * ・対応済みトグルは 01 サマリーの SM-04 と同じ状態を更新する
  * ・所要時間・期限は出さない（handoff.md 5章）
  */
-export function ActionList({ actions }: { actions: Action[] }) {
+export function ActionList({
+  actions,
+  threads,
+  canAnswerInquiry,
+}: {
+  actions: Action[];
+  /** アクションIDごとの照会履歴 */
+  threads: Record<string, ThreadMessage[]>;
+  /** 照会に回答できる状態か（API キーの有無） */
+  canAnswerInquiry: boolean;
+}) {
   const { actions: current, setDone } = useActionStatus(actions);
   const [groupBy, setGroupBy] = useState<GroupBy>('priority');
   const [source, setSource] = useState<SourceFilter>('all');
@@ -177,38 +189,11 @@ export function ActionList({ actions }: { actions: Action[] }) {
                           SOURCE <b>{action.sourceLabel}</b>
                         </span>
                       </div>
-                      {action.qa.length > 0 && (
-                        <div className="ask">
-                          <div className="ah">想定される確認事項</div>
-                          <div className="ab">
-                            {action.qa.map((qa) => (
-                              <div key={qa.question} style={{ marginBottom: 10 }}>
-                                <div
-                                  style={{ fontSize: 11.5, fontWeight: 700, marginBottom: 4 }}
-                                >
-                                  {qa.question}
-                                </div>
-                                <div style={{ fontSize: 12, lineHeight: 1.9, color: 'var(--ink-2)' }}>
-                                  {qa.answer}
-                                </div>
-                              </div>
-                            ))}
-                            <p
-                              style={{
-                                fontSize: 10,
-                                color: 'var(--mute)',
-                                marginTop: 8,
-                                paddingTop: 7,
-                                borderTop: '1px solid var(--line)',
-                                lineHeight: 1.7,
-                              }}
-                            >
-                              校内事情を入力して再評価を受ける照会欄は Phase 2
-                              で実装します（handoff.md 8章）。
-                            </p>
-                          </div>
-                        </div>
-                      )}
+                      <InquiryBox
+                        action={action}
+                        initialMessages={threads[action.id] ?? []}
+                        canAnswer={canAnswerInquiry}
+                      />
                     </div>
                   </div>
                 );

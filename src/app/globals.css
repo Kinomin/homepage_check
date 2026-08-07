@@ -266,9 +266,12 @@ table.gap tbody tr.catrow.hide{display:none}
 .chips{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:9px}
 .chip{background:var(--surface);border:1px solid var(--line-2);color:var(--ink-2);border-radius:3px;padding:4px 10px;font-size:11px;transition:.12s}
 .chip:hover{background:var(--surface-2);border-color:var(--blue);color:var(--blue-deep)}
+.chip:disabled{opacity:.45;cursor:default}
+.chip:disabled:hover{background:var(--surface);border-color:var(--line-2);color:var(--ink-2)}
 .askbox{display:flex;gap:6px}
 .askbox input{flex:1;border:1px solid var(--line-2);background:var(--surface);border-radius:3px;padding:7px 11px;font-size:12px}
 .askbox input::placeholder{color:var(--mute)}
+.askbox input:disabled{background:var(--surface-3);color:var(--mute)}
 .answer{display:none;background:var(--surface-2);border:1px solid var(--line);border-radius:3px;padding:12px 14px;margin-top:9px;font-size:12px;line-height:1.9;color:var(--ink-2)}
 .answer.on{display:block;animation:rise .18s ease both}
 .answer .qline{font-size:11.5px;color:var(--ink);font-weight:700;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--line)}

@@ -3,6 +3,8 @@ import { DemoNote } from '@/components/shell/DemoNote';
 import { Topbar } from '@/components/shell/Topbar';
 import { CRITERIA } from '@/lib/analysis/criteria';
 import { loadDashboard } from '@/lib/data/repository';
+import { loadThread } from '@/lib/data/thread-repository';
+import { isAnthropicConfigured } from '@/lib/env';
 import { SCREENS } from '@/lib/screens';
 import {
   DIFFICULTIES,
@@ -15,6 +17,13 @@ import {
 export default async function ActionsPage() {
   const { schools, scan, actions, isDemo } = await loadDashboard();
 
+  // 照会履歴はアクションごとに保持する（handoff.md 5章 06）
+  const threads = Object.fromEntries(
+    await Promise.all(
+      actions.map(async (action) => [action.id, await loadThread(action.id)] as const),
+    ),
+  );
+
   return (
     <>
       <Topbar
@@ -26,7 +35,11 @@ export default async function ActionsPage() {
       />
       <div className="wrap">
         <DemoNote isDemo={isDemo} />
-        <ActionList actions={actions} />
+        <ActionList
+          actions={actions}
+          threads={threads}
+          canAnswerInquiry={isAnthropicConfigured()}
+        />
 
         <div className="card" style={{ marginTop: 16 }}>
           <div className="card-h">
