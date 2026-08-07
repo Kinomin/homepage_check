@@ -9,10 +9,12 @@
  */
 
 import { CRITERIA, CRITERIA_BY_ID } from '../analysis/criteria';
+import type { DiscoveryPage } from '../analysis/discovery';
 import type { GapRow } from '../analysis/summary';
 import { createServerClient } from '../supabase/server';
 import type { Action, ActionStatus, Level, Measurement, School } from '../types';
 import { DEMO_ACTIONS, DEMO_GAP_ROWS, DEMO_MEASUREMENTS, DEMO_SCAN, DEMO_SCHOOL_NAMES } from './demo';
+import { demoDiscoveryPages } from './demo-extras';
 
 export interface ScanMeta {
   startedAt: string;
@@ -35,6 +37,8 @@ export interface Dashboard {
   gapRows: GapRow[];
   measurements: Measurement[];
   actions: Action[];
+  /** 04 発見のされ方の算出に使う自校のページ（走査結果がなければ空） */
+  selfPages: DiscoveryPage[];
   /** デモデータで動作しているか（画面に明示する） */
   isDemo: boolean;
 }
@@ -96,6 +100,7 @@ export function loadDemoDashboard(): Dashboard {
     gapRows,
     measurements: DEMO_MEASUREMENTS,
     actions,
+    selfPages: demoDiscoveryPages(),
     isDemo: true,
   };
 }
@@ -225,6 +230,26 @@ async function loadFromSupabase(): Promise<Dashboard | null> {
     ];
   });
 
+  // 04 の算出に使う自校のページ（比較校のページは 04 では使わない）
+  const { data: pageRows } = await supabase
+    .from('pages')
+    .select(
+      'url, title, meta_description, h1_count, image_count, image_without_alt_count, has_json_ld, json_ld_types, is_pdf',
+    )
+    .eq('scan_id', selfScan.id);
+
+  const selfPages: DiscoveryPage[] = (pageRows ?? []).map((row) => ({
+    url: String(row.url),
+    title: (row.title as string) ?? null,
+    metaDescription: (row.meta_description as string) ?? null,
+    h1Count: Number(row.h1_count),
+    imageCount: Number(row.image_count),
+    imageWithoutAltCount: Number(row.image_without_alt_count),
+    hasJsonLd: Boolean(row.has_json_ld),
+    jsonLdTypes: (row.json_ld_types as string[]) ?? [],
+    isPdf: Boolean(row.is_pdf),
+  }));
+
   const { data: measurementRows } = await supabase
     .from('measurements')
     .select('key, value, unit, method')
@@ -254,6 +279,7 @@ async function loadFromSupabase(): Promise<Dashboard | null> {
     gapRows,
     measurements: measurements.length ? measurements : DEMO_MEASUREMENTS,
     actions,
+    selfPages,
     isDemo: false,
   };
 }

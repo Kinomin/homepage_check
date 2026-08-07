@@ -71,9 +71,9 @@ export const SCREENS: Record<ScreenId, Screen> = {
     no: '04',
     code: '04 ／ DISCOVERY',
     title: '発見のされ方',
-    sub: 'まだ学校名を知らない層に届いているか（Phase 2）',
+    sub: 'まだ学校名を知らない層に届いているか',
     href: '/discovery',
-    phase1: false,
+    phase1: true,
   },
   persona: {
     id: 'persona',

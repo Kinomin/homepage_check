@@ -203,6 +203,33 @@ export interface Measurement {
   method: MeasurementMethod;
 }
 
+/* ===== 04 発見のされ方 ===== */
+
+/**
+ * 検索キーワードの種類。
+ * branded は学校名を知っている人の検索、generic は知らない人の検索。
+ * 04 の主役は generic（まだ学校名を知らない層に届いているか）。
+ */
+export const KEYWORD_TYPES = ['branded', 'generic'] as const;
+export type KeywordType = (typeof KEYWORD_TYPES)[number];
+
+export const KEYWORD_TYPE_LABEL: Record<KeywordType, string> = {
+  branded: '学校名を含む検索',
+  generic: '一般検索（地域名・沿線名・特色語）',
+};
+
+export interface Ranking {
+  id: string;
+  schoolId: string;
+  keyword: string;
+  keywordType: KeywordType;
+  /** 順位。圏外は null（0 や 999 で表さない） */
+  position: number | null;
+  /** 1位のサイト（受験情報サイト・塾ポータル等） */
+  topDomain: string | null;
+  measuredAt: string;
+}
+
 /* ===== 06 改善アクション ===== */
 
 export const PRIORITIES = ['high', 'mid', 'low'] as const;
