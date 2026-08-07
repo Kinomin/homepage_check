@@ -10,8 +10,10 @@ import {
   topQuickWins,
   weakerCompetitorCount,
 } from '@/lib/analysis/summary';
+import { loadCompetitorChanges } from '@/lib/data/competitor-diff-repository';
 import { DEMO_COMPETITOR_UPDATES } from '@/lib/data/demo-extras';
 import { loadDashboard } from '@/lib/data/repository';
+import { loadSettings } from '@/lib/data/settings-repository';
 import { SCREENS, sourceLabel } from '@/lib/screens';
 import { ACTION_SOURCES } from '@/lib/types';
 
@@ -20,6 +22,14 @@ export default async function SummaryPage() {
   const competitorCount = schools.length - 1;
   const summary = summarizeGap(gapRows);
   const breakdown = actionBreakdown(actions, ACTION_SOURCES);
+
+  const { settings } = await loadSettings();
+  const competitorDiff = isDemo
+    ? null
+    : await loadCompetitorChanges(
+        schools.filter((school) => school.role === 'competitor'),
+        settings.crawl.competitorMaxPages,
+      );
 
   return (
     <>
@@ -107,18 +117,32 @@ export default async function SummaryPage() {
                 <span className="note">公開ページの差分のみ</span>
               </div>
               <div className="card-b">
-                {isDemo ? (
+                {isDemo &&
                   DEMO_COMPETITOR_UPDATES.map((update) => (
                     <div className="diff" key={`${update.date}-${update.school}`}>
                       <span className="dt2">{update.date}</span>
                       <span className="sch">{update.school}</span>
                       <span>{update.body}</span>
                     </div>
-                  ))
-                ) : (
+                  ))}
+
+                {competitorDiff?.changes.map((change) => (
+                  <div className="diff" key={`${change.kind}-${change.schoolId}-${change.body}`}>
+                    <span className="dt2">{formatShortJst(change.observedAt)}</span>
+                    <span className="sch">{change.schoolName}</span>
+                    <span>{change.body}</span>
+                  </div>
+                ))}
+
+                {/* 差分が出せない理由を分けて書く。「変化がない」と混ぜない */}
+                {competitorDiff && competitorDiff.changes.length === 0 && (
                   <p style={{ fontSize: 12, color: 'var(--mute)', lineHeight: 1.9 }}>
-                    前回の走査がまだないため、差分はありません。週次の走査が2回目以降になると、
-                    比較校の公開ページの差分をここに表示します。
+                    {competitorDiff.availability === 'no-scan' &&
+                      '比較校の走査記録がまだありません。1回目の走査が終わると記録が始まります。'}
+                    {competitorDiff.availability === 'first-scan' &&
+                      '比較校の走査が1回目のため、比べる相手がありません。2回目の走査から差分を表示します。'}
+                    {competitorDiff.availability === 'ready' &&
+                      '前回の走査から、公開状況の変化は確認できませんでした。'}
                   </p>
                 )}
               </div>
@@ -177,4 +201,17 @@ export default async function SummaryPage() {
       </div>
     </>
   );
+}
+
+/** 走査日は日本時間で「8/02」の形にする（実行環境のタイムゾーンに左右させない） */
+function formatShortJst(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return new Intl.DateTimeFormat('ja-JP', {
+    timeZone: 'Asia/Tokyo',
+    month: 'numeric',
+    day: '2-digit',
+  })
+    .format(date)
+    .replace('/', '/');
 }
