@@ -317,13 +317,38 @@ table.gap tbody tr.catrow.hide{display:none}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
 /* ===== 印刷（07 レポートの PDF 書き出し） ===== */
+/* ===== 07 A4横1枚モード ===== */
+/* 画面上でも仕上がりの比率が分かるようにしておく（印刷して初めて崩れに気づく状態を作らない） */
+.sheet.onepage{padding:20px 24px}
+.sheet.onepage .sheet-h{padding-bottom:6px;margin-bottom:10px}
+.sheet.onepage .sheet-h .t{font-size:14px}
+.sheet.onepage .cols{column-count:2;column-gap:18px}
+.sheet.onepage section.blk{margin-bottom:11px;break-inside:avoid;-webkit-column-break-inside:avoid}
+.sheet.onepage h3{font-size:11.5px;margin-bottom:4px}
+.sheet.onepage table{font-size:9.5px}
+.sheet.onepage th,.sheet.onepage td{padding:2.5px 5px}
+.sheet.onepage .conf{font-size:8.5px;line-height:1.65}
+.sheet .trimmed{font-size:9.5px;color:var(--mute);margin-top:3px}
+
 @media print{
-  .side,.topbar,.optbar,.demo-note{display:none!important}
+  .side,.topbar,.optbar,.demo-note,.print-hint{display:none!important}
   .shell{display:block}
   .main{padding:0}
   .wrap{padding:0;max-width:none}
   .sheet{border:none;box-shadow:none;padding:0}
   body{background:#fff}
+
+  /* 既定は A4 縦。内容が多ければ複数ページに分かれる */
+  @page report-portrait{size:A4 portrait;margin:14mm}
+  .sheet{page:report-portrait}
+
+  /* A4横1枚モード。用紙を横に変え、2段組で1枚に収める */
+  @page report-landscape{size:A4 landscape;margin:9mm}
+  .sheet.onepage{page:report-landscape;padding:0}
+  .sheet.onepage .cols{column-count:2;column-gap:10mm}
+  /* 表が段や紙をまたぐと読めなくなる */
+  .sheet section.blk{break-inside:avoid}
+  .sheet table{break-inside:avoid}
 }
 
 /* ナビは Link（a要素）で描画するため、button 前提の指定を a にも効かせる */
