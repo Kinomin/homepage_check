@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-import { SCREEN_LIST } from '@/lib/screens';
+import { NAV_DIVIDER_BEFORE, SCREEN_LIST } from '@/lib/screens';
 
 /**
  * 画面名称は SCREENS（src/lib/screens.ts）から引く。
@@ -33,9 +33,9 @@ export function Sidebar({
         <div className="nm">{schoolName}</div>
       </div>
       <nav className="nav" role="tablist">
-        {SCREEN_LIST.map((screen, index) => (
+        {SCREEN_LIST.map((screen) => (
           <div key={screen.id} style={{ display: 'contents' }}>
-            {index === SCREEN_LIST.length - 1 && <div className="divider" />}
+            {NAV_DIVIDER_BEFORE.includes(screen.id) && <div className="divider" />}
             <Link
               href={screen.href}
               role="tab"
@@ -64,7 +64,8 @@ export function Sidebar({
       <div className="side-foot">
         LAST SCAN　<b>{formatDateTime(lastScan)}</b>
         <br />
-        NEXT SCAN　<b>{nextScan ? formatDateTime(nextScan) : '未設定'}</b>
+        {/* 次回走査は設定画面のスケジュールから算出する。手動のみの場合は「自動実行なし」 */}
+        NEXT SCAN　<b>{nextScan ? formatDateTime(nextScan) : '自動実行なし'}</b>
         <br />
         CRAWL DEPTH　<b>{crawlDepth}</b>
       </div>

@@ -16,6 +16,7 @@ export const SCREEN_IDS = [
   'persona',
   'action',
   'report',
+  'settings',
 ] as const;
 
 export type ScreenId = (typeof SCREEN_IDS)[number];
@@ -101,7 +102,19 @@ export const SCREENS: Record<ScreenId, Screen> = {
     href: '/report',
     phase1: true,
   },
+  settings: {
+    id: 'settings',
+    no: '08',
+    code: '08 ／ SETTINGS',
+    title: '設定',
+    sub: '走査スケジュール・クロール範囲・判定コスト',
+    href: '/settings',
+    phase1: true,
+  },
 };
+
+/** 分析画面（01〜07）と設定画面を分けるための区切り位置 */
+export const NAV_DIVIDER_BEFORE: ScreenId[] = ['report', 'settings'];
 
 export const SCREEN_LIST: Screen[] = SCREEN_IDS.map((id) => SCREENS[id]);
 

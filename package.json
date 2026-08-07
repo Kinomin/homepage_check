@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "generate:demo": "node scripts/generate-demo.mjs",
-    "scan": "tsx scripts/scan.ts"
+    "scan": "tsx scripts/scan.ts",
+    "scan:due": "tsx scripts/scan-due.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

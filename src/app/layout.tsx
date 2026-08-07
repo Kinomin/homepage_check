@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 
 import { Sidebar } from '@/components/shell/Sidebar';
 import { loadDashboard } from '@/lib/data/repository';
+import { loadSettings } from '@/lib/data/settings-repository';
+import { nextScanAt } from '@/lib/settings';
 import './globals.css';
 
 /**
@@ -17,6 +19,13 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const { schools, scan } = await loadDashboard();
+  const { settings } = await loadSettings();
+  // 次回走査は設定のスケジュールから算出する（手動のみなら null）
+  const nextScan = nextScanAt(
+    settings.schedule.selfFrequency,
+    settings.schedule,
+    new Date(scan.startedAt),
+  );
 
   return (
     <html lang="ja">
@@ -35,8 +44,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <Sidebar
             schoolName={schools[0]?.name ?? '—'}
             lastScan={scan.startedAt}
-            nextScan={scan.nextScanAt}
-            crawlDepth={scan.crawlDepth}
+            nextScan={nextScan ? nextScan.toISOString() : null}
+            crawlDepth={settings.crawl.maxDepth}
           />
           <main className="main">{children}</main>
         </div>

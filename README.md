@@ -79,6 +79,7 @@ npm run dev                  # http://localhost:3000
 | `npm test` | 集計ロジック・クロール・判定パイプラインのテスト |
 | `npm run typecheck` / `npm run lint` | 型検査／Lint |
 | `npm run scan -- --url https://example.ed.jp --name 学校名 --role self` | 1校の走査と判定を実行 |
+| `npm run scan:due` | 設定のスケジュールに従い、いま走査すべき学校を一覧表示（`-- --run` で実行） |
 | `npm run generate:demo` | `prototype.html` からデモデータを再生成 |
 | `npx tsx scripts/generate-criteria-seed.ts` | 31項目のシード SQL を再生成 |
 
@@ -87,6 +88,7 @@ npm run dev                  # http://localhost:3000
 ```bash
 psql "$DATABASE_URL" -f supabase/migrations/0001_init.sql
 psql "$DATABASE_URL" -f supabase/migrations/0002_rls.sql
+psql "$DATABASE_URL" -f supabase/migrations/0003_settings.sql
 psql "$DATABASE_URL" -f supabase/seed/criteria.sql
 ```
 
@@ -100,10 +102,11 @@ src/lib/types.ts              判定レベル・優先度・出典などの enum
 src/lib/screens.ts            画面名称の唯一の定義元（10章-3 対策）
 src/lib/analysis/criteria.ts  調査項目31件（DB シードもここから生成）
 src/lib/analysis/summary.ts   01・02 の集計ロジック（unknown の除外規則を含む）
+src/lib/settings.ts           走査スケジュール・クロール範囲・判定コストの設定と次回走査日時の算出
 src/lib/crawl/                robots.txt 解釈・HTML 抽出・クロール本体
 src/lib/judge/                候補ページ抽出 → LLM 判定 → 根拠保存
 src/lib/data/                 画面へのデータ供給（Supabase / デモの切替）
-src/app/                      01 サマリー・02 欠落マップ・03 導線・06 アクション・07 レポート
+src/app/                      01 サマリー・02 欠落マップ・03 導線・06 アクション・07 レポート・08 設定
 supabase/                     マイグレーションとシード
 tests/                        集計・クロール・判定パイプラインのテスト
 ```
@@ -118,11 +121,33 @@ tests/                        集計・クロール・判定パイプライン�
 | 走査失敗と欠落を区別する | 判定不能はすべて `unknown`（`judge/judge.ts`）。集計では `unknown` と `n/a` を欠落から除外する（`analysis/summary.ts`、テストで固定） |
 | 所要時間・期限を生成しない | `types.ts` の `Action` に期限・工数のフィールドを持たない。DB の `actions` にも列がない |
 
+## 08 設定画面
+
+走査条件をコードに固定せず、設定画面から変更できるようにしている。値は
+`organization_settings`（組織ごとに1行）に保存し、画面・API・走査スクリプトが
+同じ入口（`src/lib/data/settings-repository.ts`）を通して読む。変更できるのは管理者のみ。
+
+| 区分 | 設定できること | 既定値 |
+|---|---|---|
+| 走査スケジュール | 自校・比較校それぞれの頻度（週次／隔週／月次／手動のみ）、実行曜日・実行日・実行時刻 | 自校 週次／比較校 月次、月曜 6時 |
+| 判定コスト | 思考深度、1ページあたりの本文上限、1項目あたりの候補ページ数 | low / 2,500字 / 5ページ |
+| クロール範囲 | 深度、自校・比較校のページ数上限、リクエスト間隔、同時接続数 | 4／200・60ページ／1,000ms／2接続 |
+
+設定画面では、選んだ頻度での**月あたりの判定数**をその場に表示する（31項目 × 校数 × 走査回数）。
+頻度を上げたときのコスト増が、保存する前に見えるようにしている。
+
+次回走査日時の算出（`nextScanAt`）と走査対象の判定（`isScanDue`）は副作用のない純関数で、
+日本時間で解釈する。cron からは `npm run scan:due -- --run` を1時間ごとに起動する想定で、
+どの学校をいつ走査するかの判断はこの関数だけが持つ。自動実行の登録と失敗時の通知は Phase 2。
+
+入力範囲は `SETTINGS_RANGES` を唯一の定義元とし、画面の input とサーバ側の検証
+（`validateSettings`）が同じ値を参照する。片方だけ緩い、という状態を作らないため。
+
 ## 要確定事項（9章）に対して置いた既定値
 
 コードを書き進めるために、handoff.md の推奨に沿って以下を既定にした。**発注者との合意後に変更しうる。**
 
-- **A 判定コスト** — 候補ページ抽出で LLM に渡す本文を1ページ2,500字までに制限。共通のシステムプロンプトをプロンプトキャッシュ対象にし、`JUDGE_EFFORT` の既定を `low` にしている。自校と比較校の頻度差（週次／月次）はスケジューラ未実装のため未設定。さらに絞る場合は Message Batches API（50%割引）に載せ替えられるよう、1判定=1リクエストの形にしてある
+- **A 判定コスト** — 自校と比較校の頻度差は**設定画面で変更できる**ようにし、既定を「自校 週次／比較校 月次」にした（比較4校で月248判定）。候補ページ抽出で LLM に渡す本文量と思考深度も設定項目にしてある。共通のシステムプロンプトはプロンプトキャッシュ対象。さらに絞る場合は Message Batches API（50%割引）に載せ替えられるよう、1判定=1リクエストの形にしてある
 - **B 比較校の走査範囲** — 推奨どおり、比較校は判定に必要なページのみ（既定60ページ、自校は200ページ）。全体集計値は自校のみ
 - **C Playwright の要否** — Cheerio のみで実装。JS レンダリングが必要なページのフォールバックは未実装（`crawl/crawler.ts` に差し込み口を残している）
 - **D 順位計測** — Phase 1 では実装せず、04 は Phase 2 の説明のみを表示

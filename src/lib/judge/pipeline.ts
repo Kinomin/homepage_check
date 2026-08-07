@@ -10,6 +10,7 @@
  */
 
 import { CRITERIA } from '../analysis/criteria';
+import { DEFAULT_SETTINGS, type JudgeSettings, type OrgSettings } from '../settings';
 import type { ExtractedPage } from '../crawl/extract';
 import { crawlSite, type CrawlOptions, type CrawlResult } from '../crawl/crawler';
 import type { Criterion, Finding, School } from '../types';
@@ -64,6 +65,8 @@ export async function runScan(
   school: School,
   options: Partial<CrawlOptions> = {},
   previousFindings: Map<string, Pick<Finding, 'level' | 'evidenceText'>> = new Map(),
+  /** 設定画面（08）の設定。走査範囲と判定コストの既定値になる。 */
+  settings: OrgSettings = DEFAULT_SETTINGS,
 ): Promise<ScanOutcome> {
   // robots.txt で拒否されている学校はそもそも走査しない（handoff.md 6章）
   if (!school.robotsAllowed) {
@@ -79,7 +82,7 @@ export async function runScan(
           imageWithoutAltCount: 0,
           pdfOnlyCount: 0,
           describedPageCount: 0,
-          crawlDepth: options.maxDepth ?? 4,
+          crawlDepth: options.maxDepth ?? settings.crawl.maxDepth,
         },
       },
       findings: allUnknownFindings(school, 'robots.txt により走査が拒否されています'),
@@ -88,9 +91,15 @@ export async function runScan(
 
   const crawl = await crawlSite({
     origin: school.url,
-    // 比較校は判定に必要なページのみに絞る（要確定事項B の推奨）
-    maxPages: school.role === 'self' ? 200 : 60,
-    // 比較校のページ本文は保存しない（handoff.md 6章）
+    maxDepth: settings.crawl.maxDepth,
+    // 比較校は判定に必要なページのみに絞る（要確定事項B の推奨。設定画面で変更可能）
+    maxPages:
+      school.role === 'self' ? settings.crawl.selfMaxPages : settings.crawl.competitorMaxPages,
+    delayMs: settings.crawl.requestIntervalMs,
+    concurrency: settings.crawl.concurrency,
+    // 本文は判定のためにメモリ上でのみ保持する。比較校の本文を保存・再配布は
+    // しない（handoff.md 6章）が、内容で判定するには本文が要るため取得はする。
+    // 保存時に落とすのは呼び出し側（scripts/scan.ts の pages 書き込み）。
     keepBodyText: true,
     ...options,
   });
@@ -114,6 +123,7 @@ export async function runScan(
         pages: crawl.pages,
         outline,
         previous: previousFindings.get(criterion.id) ?? null,
+        judgeSettings: settings.judge,
       }),
     );
   }
@@ -127,8 +137,10 @@ export async function judgeOne(params: {
   pages: ExtractedPage[];
   outline: string;
   previous: Pick<Finding, 'level' | 'evidenceText'> | null;
+  judgeSettings?: JudgeSettings;
 }): Promise<Omit<Finding, 'scanId'>> {
   const { criterion, school, pages, outline, previous } = params;
+  const judgeSettings = params.judgeSettings ?? DEFAULT_SETTINGS.judge;
 
   if (!isApplicable(criterion, school)) {
     return {
@@ -143,7 +155,7 @@ export async function judgeOne(params: {
   }
 
   const adjusted = criterionForSchool(criterion, school);
-  const candidates = selectCandidates(pages, adjusted);
+  const candidates = selectCandidates(pages, adjusted, judgeSettings.candidateLimit);
 
   const result: JudgeResult =
     pages.length === 0
@@ -156,6 +168,8 @@ export async function judgeOne(params: {
           outline,
           pageCount: pages.length,
           previous,
+          bodyCharLimit: judgeSettings.bodyCharLimit,
+          effort: judgeSettings.effort,
         });
 
   return {

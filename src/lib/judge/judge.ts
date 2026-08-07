@@ -15,6 +15,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 
 import { env, isAnthropicConfigured } from '../env';
+import type { JudgeEffort } from '../settings';
 import type { Level, SchoolRole } from '../types';
 import {
   JUDGE_OUTPUT_SCHEMA,
@@ -42,7 +43,7 @@ function getClient(): Anthropic {
 }
 
 export async function judgeCriterion(
-  params: BuildPromptParams & { role: SchoolRole },
+  params: BuildPromptParams & { role: SchoolRole; effort?: JudgeEffort },
 ): Promise<JudgeResult> {
   if (!isAnthropicConfigured()) {
     return unknownResult('ANTHROPIC_API_KEY が設定されていません');
@@ -61,7 +62,8 @@ export async function judgeCriterion(
         },
       ],
       output_config: {
-        effort: env.judgeEffort,
+        // 設定画面（08）の思考深度。未指定なら環境変数の既定値。
+        effort: params.effort ?? env.judgeEffort,
         format: { type: 'json_schema', schema: JUDGE_OUTPUT_SCHEMA },
       },
       messages: [{ role: 'user', content: buildJudgeUserMessage(params) }],
