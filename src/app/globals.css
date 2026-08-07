@@ -337,6 +337,8 @@ table.gap tbody tr.catrow.hide{display:none}
 .setting-input{display:flex;align-items:baseline;gap:7px;flex:none}
 .setting-input input{width:96px;border:1px solid var(--line-2);background:var(--surface);border-radius:3px;padding:6px 9px;font-family:var(--mono);font-size:12.5px;text-align:right}
 .setting-input input:disabled{background:var(--surface-3);color:var(--mute)}
+/* 数値は右揃えだが、URL のような文字列は左から読む */
+.setting-input input[type=url]{width:100%;text-align:left}
 .setting-suffix{font-size:11.5px;color:var(--ink-2)}
 .setting-range{font-family:var(--mono);font-size:9.5px;color:var(--mute);width:54px;text-align:right}
 .setting-next{font-family:var(--mono);font-size:10.5px;color:var(--mute);margin-top:7px}

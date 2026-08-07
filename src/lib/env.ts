@@ -19,6 +19,12 @@ export const env = {
   judgeEffort: (process.env.JUDGE_EFFORT ?? 'low') as 'low' | 'medium' | 'high' | 'xhigh' | 'max',
   crawlUserAgent:
     process.env.CRAWL_USER_AGENT ?? 'SchoolInsightBot/1.0 (+https://example.com/bot)',
+  /**
+   * 自動実行エンドポイント（/api/cron/scan）の共有シークレット。
+   * 未設定なら自動実行は無効。走査は外部サイトへのリクエストを伴うため、
+   * 誰でも叩ける口を開けない。
+   */
+  cronSecret: process.env.CRON_SECRET ?? '',
 } as const;
 
 export function isSupabaseConfigured(): boolean {
@@ -27,4 +33,9 @@ export function isSupabaseConfigured(): boolean {
 
 export function isAnthropicConfigured(): boolean {
   return Boolean(env.anthropicApiKey);
+}
+
+/** 自動実行が有効か（設定画面に状態を出すために使う） */
+export function isCronConfigured(): boolean {
+  return Boolean(env.cronSecret);
 }

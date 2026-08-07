@@ -83,6 +83,7 @@ npm run dev                  # http://localhost:3000
 | `npm run typecheck` / `npm run lint` | 型検査／Lint |
 | `npm run scan -- --url https://example.ed.jp --name 学校名 --role self` | 1校の走査と判定を実行 |
 | `npm run scan:due` | 設定のスケジュールに従い、いま走査すべき学校を一覧表示（`-- --run` で実行） |
+| `POST /api/cron/scan` | 同じ処理の自動実行版。`CRON_SECRET` による Bearer 認証（`vercel.json` の cron が1時間ごとに起動） |
 | `npm run generate:demo` | `prototype.html` からデモデータを再生成 |
 | `npx tsx scripts/generate-criteria-seed.ts` | 31項目のシード SQL を再生成 |
 
@@ -93,6 +94,7 @@ psql "$DATABASE_URL" -f supabase/migrations/0001_init.sql
 psql "$DATABASE_URL" -f supabase/migrations/0002_rls.sql
 psql "$DATABASE_URL" -f supabase/migrations/0003_settings.sql
 psql "$DATABASE_URL" -f supabase/migrations/0004_personas.sql
+psql "$DATABASE_URL" -f supabase/migrations/0005_scan_runs.sql
 psql "$DATABASE_URL" -f supabase/seed/criteria.sql
 ```
 
@@ -112,6 +114,7 @@ src/lib/crawl/                robots.txt 解釈・HTML 抽出・クロール本�
 src/lib/judge/                候補ページ抽出 → LLM 判定 → 根拠保存
 src/lib/persona/              05 ペルソナ仮説の生成（判定結果の要約を渡し、根拠 criterion_id を必須にする）
 src/lib/actions/inquiry.ts    06 照会の再評価（校内事情 → 位置づけの見直し）
+src/lib/scan/                 自動実行（対象の判定・実行・記録・失敗時の通知）。CLI と cron が共有する
 src/lib/data/                 画面へのデータ供給（Supabase / デモの切替）
 src/app/                      01〜07 の各画面と 08 設定
 supabase/                     マイグレーションとシード
@@ -125,7 +128,7 @@ tests/                        集計・クロール・判定・04・05・06 の�
 | 計測と解釈を分離する | `analysis/summary.ts` と `analysis/discovery.ts`（02・04）は機械判定のみで、LLM を呼ばない。解釈を生成するのは `persona/`（05）と `actions/inquiry.ts`（06）だけで、どちらも根拠に紐付ける |
 | 語句一致で判定しない | `judge/candidates.ts` は候補の絞り込みだけを行い、水準は決めない。`aliases` は候補抽出のヒントとして渡し、プロンプトにも「一致条件ではない」と明記している |
 | 比較校を採点しない | `judge/prompt.ts` の `COMPETITOR_SYSTEM_PROMPT` が評価語・比較・改善提案を禁じる。02 の根拠パネルも比較校では記録文のみを出す。06 の照会で LLM に渡す比較校の情報は「何校中何校が公開しているか」だけ（`inquiryBasis`、テストで固定） |
-| 走査失敗と欠落を区別する | 判定不能はすべて `unknown`（`judge/judge.ts`）。集計では `unknown` と `n/a` を欠落から除外する（`analysis/summary.ts`、テストで固定） |
+| 走査失敗と欠落を区別する | 判定不能はすべて `unknown`（`judge/judge.ts`）。集計では `unknown` と `n/a` を欠落から除外する（`analysis/summary.ts`、テストで固定）。失敗した走査は保存せず `scan_runs` に記録する（`scan/runner.ts`） |
 | 所要時間・期限を生成しない | `types.ts` の `Action` に期限・工数のフィールドを持たない。DB の `actions` にも列がない。06 の照会もプロンプトで見積もりを禁じ、回答欄の脚注に示していないことを明記する |
 
 ## 08 設定画面
@@ -139,16 +142,44 @@ tests/                        集計・クロール・判定・04・05・06 の�
 | 走査スケジュール | 自校・比較校それぞれの頻度（週次／隔週／月次／手動のみ）、実行曜日・実行日・実行時刻 | 自校 週次／比較校 月次、月曜 6時 |
 | 判定コスト | 思考深度、1ページあたりの本文上限、1項目あたりの候補ページ数 | low / 2,500字 / 5ページ |
 | クロール範囲 | 深度、自校・比較校のページ数上限、リクエスト間隔、同時接続数 | 4／200・60ページ／1,000ms／2接続 |
+| 自動実行と通知 | 失敗時に通知するか、通知先の Webhook URL | 通知する／通知先は未設定 |
 
 設定画面では、選んだ頻度での**月あたりの判定数**をその場に表示する（31項目 × 校数 × 走査回数）。
 頻度を上げたときのコスト増が、保存する前に見えるようにしている。
 
 次回走査日時の算出（`nextScanAt`）と走査対象の判定（`isScanDue`）は副作用のない純関数で、
-日本時間で解釈する。cron からは `npm run scan:due -- --run` を1時間ごとに起動する想定で、
-どの学校をいつ走査するかの判断はこの関数だけが持つ。自動実行の登録と失敗時の通知は Phase 2。
+日本時間で解釈する。どの学校をいつ走査するかの判断はこの関数だけが持つ。
 
 入力範囲は `SETTINGS_RANGES` を唯一の定義元とし、画面の input とサーバ側の検証
 （`validateSettings`）が同じ値を参照する。片方だけ緩い、という状態を作らないため。
+
+## 自動実行
+
+`vercel.json` の cron が1時間ごとに `/api/cron/scan` を叩き、上のスケジュールに達した
+学校だけを走査する。CLI（`npm run scan:due -- --run`）も同じ `src/lib/scan/runner.ts` を通る。
+判断も実行も1箇所に置き、自動実行のときだけ挙動が違う状態を作らない。
+
+```bash
+CRON_SECRET=$(openssl rand -hex 32)   # .env とデプロイ先の環境変数に設定する
+curl -X POST -H "authorization: Bearer $CRON_SECRET" https://<host>/api/cron/scan
+```
+
+`CRON_SECRET` が未設定なら自動実行は無効（503）。走査は外部サイトへのリクエストを伴うため、
+誰でも叩ける口を開けない。設定画面の ST-04 に、有効かどうかと直近の実行結果を出している。
+
+走査まわりで守っていること:
+
+- **1校の失敗で残りを止めない。** 失敗は記録して次の学校に進む
+- **失敗した走査の結果は保存しない。** 空の結果を保存すると、次の集計で「情報がない」になる
+- **前回走査とみなすのは走り切ったものだけ。** 失敗を前回扱いにすると次回まで再試行されない
+- **学校をまたいで並列にしない。** 学校ごとの同時接続数は設定で絞っているが、
+  並列に走らせると実行環境から見た総接続数がその値を超える
+
+失敗があったとき（または走査はできたが判定が付かなかった項目があるとき）だけ通知する。
+毎回送ると読まれなくなり、本当に見てほしいときに気づかれない。通知先はメール配信ベンダーを
+勝手に選ばず、任意の Webhook URL（https のみ）を設定画面から指定する形にした。
+通知に載せるのは学校名・結末・理由だけで、ページ本文は送らない。
+通知先が未設定でも、実行の記録（`scan_runs`）は必ず残る。
 
 ## 要確定事項（9章）に対して置いた既定値
 

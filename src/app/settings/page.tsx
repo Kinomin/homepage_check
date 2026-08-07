@@ -3,12 +3,15 @@ import { DemoNote } from '@/components/shell/DemoNote';
 import { Topbar } from '@/components/shell/Topbar';
 import { CRITERIA } from '@/lib/analysis/criteria';
 import { loadDashboard } from '@/lib/data/repository';
+import { loadRecentScanRuns } from '@/lib/data/scan-run-repository';
 import { loadSettings } from '@/lib/data/settings-repository';
+import { isCronConfigured } from '@/lib/env';
 import { SCREENS } from '@/lib/screens';
 
 export default async function SettingsPage() {
   const { schools, scan, isDemo } = await loadDashboard();
   const { settings, persisted } = await loadSettings();
+  const recentRuns = await loadRecentScanRuns();
   const competitorCount = schools.length - 1;
 
   return (
@@ -35,6 +38,8 @@ export default async function SettingsPage() {
           competitorCount={competitorCount}
           criteriaCount={CRITERIA.length}
           lastScanAt={scan.startedAt}
+          cronEnabled={isCronConfigured()}
+          recentRuns={recentRuns}
         />
       </div>
     </>

@@ -106,6 +106,10 @@ function fromRow(row: SettingsRow): OrgSettings {
       bodyCharLimit: Number(row.judge_body_char_limit),
       candidateLimit: Number(row.judge_candidate_limit),
     },
+    notify: {
+      webhookUrl: (row.notify_webhook_url as string) ?? '',
+      onFailure: row.notify_on_failure !== false,
+    },
   });
   return settings;
 }
@@ -125,5 +129,7 @@ function toRow(settings: OrgSettings): SettingsRow {
     judge_effort: settings.judge.effort,
     judge_body_char_limit: settings.judge.bodyCharLimit,
     judge_candidate_limit: settings.judge.candidateLimit,
+    notify_webhook_url: settings.notify.webhookUrl || null,
+    notify_on_failure: settings.notify.onFailure,
   };
 }

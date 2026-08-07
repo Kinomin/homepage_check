@@ -77,10 +77,22 @@ export interface JudgeSettings {
   candidateLimit: number;
 }
 
+export interface NotifySettings {
+  /**
+   * 走査で確認が必要になったときの通知先。
+   * メール配信ベンダーを勝手に選ばず、任意の Webhook URL を受ける形にしている
+   * （Slack・Google Chat・自前の受け口のいずれでも使える）。
+   */
+  webhookUrl: string;
+  /** 通知を出すか。未設定・無効でも実行の記録は必ず残る */
+  onFailure: boolean;
+}
+
 export interface OrgSettings {
   schedule: ScheduleSettings;
   crawl: CrawlSettings;
   judge: JudgeSettings;
+  notify: NotifySettings;
 }
 
 /** 初期設定。handoff.md の推奨をそのまま既定値にしている。 */
@@ -103,6 +115,10 @@ export const DEFAULT_SETTINGS: OrgSettings = {
     effort: 'low',
     bodyCharLimit: 2500,
     candidateLimit: 5,
+  },
+  notify: {
+    webhookUrl: '',
+    onFailure: true,
   },
 };
 
@@ -202,9 +218,35 @@ export function validateSettings(input: OrgSettings): {
         bodyCharLimit: clampError('bodyCharLimit', input.judge.bodyCharLimit, errors),
         candidateLimit: clampError('candidateLimit', input.judge.candidateLimit, errors),
       },
+      notify: {
+        webhookUrl: checkWebhookUrl(input.notify?.webhookUrl ?? '', errors),
+        onFailure: input.notify?.onFailure ?? DEFAULT_SETTINGS.notify.onFailure,
+      },
     },
     errors,
   };
+}
+
+/**
+ * 通知先URL。未設定は許す（記録だけ残す運用がありうる）。
+ * 入力があるときは https のみ受ける。走査結果を平文で外に出さないため。
+ */
+function checkWebhookUrl(value: string, errors: SettingsValidationError[]): string {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    errors.push({ field: 'webhookUrl', message: '通知先は URL の形式で指定してください' });
+    return '';
+  }
+  if (parsed.protocol !== 'https:') {
+    errors.push({ field: 'webhookUrl', message: '通知先は https:// で始まる URL を指定してください' });
+    return '';
+  }
+  return parsed.toString();
 }
 
 function checkEffort(value: JudgeEffort, errors: SettingsValidationError[]): JudgeEffort {

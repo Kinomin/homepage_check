@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
+import type { ScanRunRecord } from '@/lib/data/scan-run-repository';
 import {
   DEFAULT_SETTINGS,
   JUDGE_EFFORTS,
@@ -36,12 +37,18 @@ export function SettingsForm({
   competitorCount,
   criteriaCount,
   lastScanAt,
+  cronEnabled,
+  recentRuns,
 }: {
   initialSettings: OrgSettings;
   persisted: boolean;
   competitorCount: number;
   criteriaCount: number;
   lastScanAt: string;
+  /** 自動実行が有効か（CRON_SECRET の有無） */
+  cronEnabled: boolean;
+  /** 直近の実行記録。走査の失敗に気づけるようにする */
+  recentRuns: ScanRunRecord[];
 }) {
   const router = useRouter();
   const [settings, setSettings] = useState<OrgSettings>(initialSettings);
@@ -156,10 +163,117 @@ export function SettingsForm({
           />
 
           <p className="setting-note">
-            自動実行そのもの（cron からの起動）は Phase 2 です。現時点では
-            <code> npm run scan:due </code>
-            がこの設定を読み、走査すべき学校を判定します。「手動のみ」を選ぶと自動実行の対象から外れます。
+            「手動のみ」を選んだ対象は自動実行から外れ、<code> npm run scan </code>
+            での個別実行のみになります。
           </p>
+        </div>
+      </div>
+
+      {/* 自動実行 */}
+      <div className="card">
+        <div className="card-h">
+          <h2>
+            <span className="id">ST-04</span>自動実行と通知
+          </h2>
+          <span className="note">走査が失敗したまま気づかれない状態を作らないため</span>
+        </div>
+        <div className="card-b">
+          <div className="setting-row">
+            <div className="setting-label">
+              自動実行
+              <small>cron が1時間ごとに起動し、上のスケジュールに達した学校だけを走査します</small>
+            </div>
+            <span
+              className="tag"
+              style={{
+                background: cronEnabled ? 'var(--sage-tint)' : 'var(--surface-3)',
+                color: cronEnabled ? 'var(--sage)' : 'var(--mute)',
+              }}
+            >
+              {cronEnabled ? '有効' : '無効（CRON_SECRET 未設定）'}
+            </span>
+          </div>
+
+          <div className="setting-row">
+            <div className="setting-label">
+              失敗時に通知する
+              <small>通知を切っても、実行の記録はこの画面に残ります</small>
+            </div>
+            <div className="seg">
+              <button
+                aria-pressed={settings.notify.onFailure}
+                onClick={() =>
+                  setSettings((s) => ({ ...s, notify: { ...s.notify, onFailure: true } }))
+                }
+              >
+                通知する
+              </button>
+              <button
+                aria-pressed={!settings.notify.onFailure}
+                onClick={() =>
+                  setSettings((s) => ({ ...s, notify: { ...s.notify, onFailure: false } }))
+                }
+              >
+                通知しない
+              </button>
+            </div>
+          </div>
+
+          <div className="setting-row">
+            <div className="setting-label">
+              通知先の Webhook URL
+              <small>Slack・Google Chat・自前の受け口のいずれでも使えます（https のみ）</small>
+            </div>
+            <div className="setting-input" style={{ flex: 1, maxWidth: 420 }}>
+              <input
+                type="url"
+                style={{ width: '100%' }}
+                placeholder="https://hooks.example.com/..."
+                value={settings.notify.webhookUrl}
+                disabled={!settings.notify.onFailure}
+                onChange={(event) =>
+                  setSettings((s) => ({
+                    ...s,
+                    notify: { ...s.notify, webhookUrl: event.target.value },
+                  }))
+                }
+              />
+            </div>
+          </div>
+
+          <p className="setting-note">
+            通知に載せるのは学校名・結末・理由だけです。ページ本文は送りません。
+            走査できなかった学校の結果は保存しません（取得できなかったことを「情報がない」として扱わないため）。
+          </p>
+
+          {recentRuns.length > 0 ? (
+            <table className="dt" style={{ marginTop: 14 }}>
+              <thead>
+                <tr>
+                  <th>実行</th>
+                  <th>起動</th>
+                  <th>対象</th>
+                  <th>要確認</th>
+                  <th>内容</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentRuns.map((run) => (
+                  <tr key={run.id}>
+                    <td>{formatJst(new Date(run.startedAt))}</td>
+                    <td>{run.trigger === 'cron' ? '自動' : '手動'}</td>
+                    <td className="n">{run.dueCount}校</td>
+                    <td className="n" style={{ color: run.failedCount > 0 ? 'var(--rose)' : undefined }}>
+                      {run.failedCount}校
+                    </td>
+                    <td style={{ whiteSpace: 'pre-wrap' }}>{run.summary}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="setting-note">自動実行の記録はまだありません。</p>
+          )}
         </div>
       </div>
 

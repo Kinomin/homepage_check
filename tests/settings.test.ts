@@ -165,4 +165,33 @@ describe('設定の検証', () => {
     expect(errors.some((e) => e.field === 'dayOfMonth')).toBe(true);
     expect(settings.schedule.dayOfMonth).toBe(28);
   });
+
+  it('通知先は未設定でよい（記録だけ残す運用がありうる）', () => {
+    const { errors, settings } = validateSettings({
+      ...DEFAULT_SETTINGS,
+      notify: { webhookUrl: '  ', onFailure: true },
+    });
+    expect(errors).toHaveLength(0);
+    expect(settings.notify.webhookUrl).toBe('');
+  });
+
+  it('通知先は https のみ受ける（走査結果を平文で外に出さない）', () => {
+    for (const url of ['http://hooks.example.com/x', 'ホック', 'ftp://example.com']) {
+      const { errors, settings } = validateSettings({
+        ...DEFAULT_SETTINGS,
+        notify: { webhookUrl: url, onFailure: true },
+      });
+      expect(errors.some((e) => e.field === 'webhookUrl')).toBe(true);
+      expect(settings.notify.webhookUrl).toBe('');
+    }
+  });
+
+  it('https の通知先はそのまま通る', () => {
+    const { errors, settings } = validateSettings({
+      ...DEFAULT_SETTINGS,
+      notify: { webhookUrl: 'https://hooks.example.com/abc', onFailure: true },
+    });
+    expect(errors).toHaveLength(0);
+    expect(settings.notify.webhookUrl).toBe('https://hooks.example.com/abc');
+  });
 });
