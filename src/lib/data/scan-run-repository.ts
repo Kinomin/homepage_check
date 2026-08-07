@@ -1,11 +1,11 @@
 /**
- * 自動実行の記録の読み出し（08 設定に出す）。
+ * 自動実行の記録の読み出し（09 設定に出す）。
  *
  * 走査が失敗したまま気づかれない状態を作らないため、直近の実行結果を画面に出す。
  * 失敗した走査は scans に保存されないので、ここが唯一の手がかりになる。
  */
 
-import { createServerClient } from '../supabase/server';
+import { createDataClient } from '../supabase/server';
 import type { ScanRunEntry } from '../scan/runner';
 
 export interface ScanRunRecord {
@@ -21,7 +21,7 @@ export interface ScanRunRecord {
 }
 
 export async function loadRecentScanRuns(limit = 5): Promise<ScanRunRecord[]> {
-  const supabase = createServerClient();
+  const supabase = await createDataClient();
   if (!supabase) return [];
 
   const { data, error } = await supabase

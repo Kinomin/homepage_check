@@ -16,6 +16,7 @@ export const SCREEN_IDS = [
   'persona',
   'action',
   'report',
+  'schools',
   'settings',
 ] as const;
 
@@ -102,10 +103,19 @@ export const SCREENS: Record<ScreenId, Screen> = {
     href: '/report',
     phase1: true,
   },
+  schools: {
+    id: 'schools',
+    no: '08',
+    code: '08 ／ SCHOOLS',
+    title: '学校と比較校',
+    sub: '自校の情報と、比較する学校の登録',
+    href: '/schools',
+    phase1: true,
+  },
   settings: {
     id: 'settings',
-    no: '08',
-    code: '08 ／ SETTINGS',
+    no: '09',
+    code: '09 ／ SETTINGS',
     title: '設定',
     sub: '走査スケジュール・クロール範囲・判定コスト',
     href: '/settings',
@@ -113,8 +123,8 @@ export const SCREENS: Record<ScreenId, Screen> = {
   },
 };
 
-/** 分析画面（01〜07）と設定画面を分けるための区切り位置 */
-export const NAV_DIVIDER_BEFORE: ScreenId[] = ['report', 'settings'];
+/** 分析画面（01〜07）と管理画面（08・09）を分けるための区切り位置 */
+export const NAV_DIVIDER_BEFORE: ScreenId[] = ['report', 'schools'];
 
 export const SCREEN_LIST: Screen[] = SCREEN_IDS.map((id) => SCREENS[id]);
 

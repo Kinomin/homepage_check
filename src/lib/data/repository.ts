@@ -11,7 +11,7 @@
 import { CRITERIA, CRITERIA_BY_ID } from '../analysis/criteria';
 import type { DiscoveryPage } from '../analysis/discovery';
 import type { GapRow } from '../analysis/summary';
-import { createServerClient } from '../supabase/server';
+import { createDataClient } from '../supabase/server';
 import type { Action, ActionStatus, Level, Measurement, School } from '../types';
 import { DEMO_ACTIONS, DEMO_GAP_ROWS, DEMO_MEASUREMENTS, DEMO_SCAN, DEMO_SCHOOL_NAMES } from './demo';
 import { demoDiscoveryPages } from './demo-extras';
@@ -56,7 +56,7 @@ const demoActionStatus: Map<string, ActionStatus> = ((
 ).__demoActionStatus ??= new Map());
 
 export async function loadDashboard(): Promise<Dashboard> {
-  const supabase = createServerClient();
+  const supabase = await createDataClient();
   if (supabase) {
     const dashboard = await loadFromSupabase();
     if (dashboard) return dashboard;
@@ -112,7 +112,7 @@ export function evidenceForSelf(criterionId: string): { text: string; source: st
 }
 
 export async function updateActionStatus(actionId: string, status: ActionStatus): Promise<void> {
-  const supabase = createServerClient();
+  const supabase = await createDataClient();
   if (supabase) {
     const { error } = await supabase
       .from('actions')
@@ -125,7 +125,7 @@ export async function updateActionStatus(actionId: string, status: ActionStatus)
 }
 
 async function loadFromSupabase(): Promise<Dashboard | null> {
-  const supabase = createServerClient();
+  const supabase = await createDataClient();
   if (!supabase) return null;
 
   const { data: orgSchools, error: schoolsError } = await supabase

@@ -7,7 +7,7 @@
  * 実際の走査条件が食い違う。
  */
 
-import { createServerClient } from '../supabase/server';
+import { createDataClient } from '../supabase/server';
 import {
   DEFAULT_SETTINGS,
   validateSettings,
@@ -32,7 +32,7 @@ export interface SettingsSource {
 }
 
 export async function loadSettings(): Promise<SettingsSource> {
-  const supabase = createServerClient();
+  const supabase = await createDataClient();
   if (supabase) {
     const { data, error } = await supabase
       .from('organization_settings')
@@ -53,7 +53,7 @@ export async function saveSettings(input: OrgSettings): Promise<SettingsSource> 
     throw new SettingsValidationFailure(errors.map((e) => e.message));
   }
 
-  const supabase = createServerClient();
+  const supabase = await createDataClient();
   if (supabase) {
     const { data: existing } = await supabase
       .from('organization_settings')

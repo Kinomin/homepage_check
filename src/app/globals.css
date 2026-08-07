@@ -44,6 +44,9 @@ button{background:none;border:none;cursor:pointer}
 .nav .divider{height:1px;background:var(--line);margin:8px 11px}
 .side-foot{padding:12px 18px 0;border-top:1px solid var(--line);font-family:var(--mono);font-size:9.5px;color:var(--mute);line-height:1.9}
 .side-foot b{color:var(--ink-2);font-weight:500}
+.side-foot span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.side-signout{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--mute);border:1px solid var(--line-2);border-radius:3px;padding:3px 9px;background:var(--surface)}
+.side-signout:hover{color:var(--ink-2);border-color:var(--line-3,var(--line-2))}
 
 /* ===== ヘッダ ===== */
 .main{min-width:0;padding:0 0 64px}
@@ -329,7 +332,7 @@ table.gap tbody tr.catrow.hide{display:none}
 .nav a[aria-selected="true"]{background:var(--blue-tint);color:var(--blue-deep);font-weight:700}
 .nav a[aria-selected="true"] .no{color:var(--blue)}
 
-/* ===== 08 設定 ===== */
+/* ===== 09 設定 ===== */
 .setting-row{display:flex;align-items:center;gap:16px;padding:10px 0;border-bottom:1px solid var(--line)}
 .setting-row:last-child{border-bottom:none}
 .setting-label{font-size:12.5px;flex:1;min-width:0}

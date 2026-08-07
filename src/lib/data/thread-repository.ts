@@ -5,7 +5,7 @@
  * Supabase 未接続時はプロセス内に保持する。
  */
 
-import { createServerClient } from '../supabase/server';
+import { createDataClient } from '../supabase/server';
 
 export interface ThreadMessage {
   role: 'user' | 'assistant';
@@ -18,7 +18,7 @@ const demoThreads: { byAction: Map<string, ThreadMessage[]> } = ((
 ).__demoThreads ??= { byAction: new Map() });
 
 export async function loadThread(actionId: string): Promise<ThreadMessage[]> {
-  const supabase = createServerClient();
+  const supabase = await createDataClient();
   if (!supabase) return demoThreads.byAction.get(actionId) ?? [];
 
   const { data, error } = await supabase
@@ -45,7 +45,7 @@ export async function appendThreadMessages(
     createdAt: new Date(Date.now() + index).toISOString(),
   }));
 
-  const supabase = createServerClient();
+  const supabase = await createDataClient();
   if (!supabase) {
     const current = demoThreads.byAction.get(actionId) ?? [];
     demoThreads.byAction.set(actionId, [...current, ...stamped]);
@@ -68,7 +68,7 @@ export async function appendThreadMessages(
 /** 06 の一覧表示用。アクションIDごとのやり取り件数だけを取る。 */
 export async function loadThreadCounts(actionIds: string[]): Promise<Map<string, number>> {
   const counts = new Map<string, number>();
-  const supabase = createServerClient();
+  const supabase = await createDataClient();
 
   if (!supabase) {
     for (const id of actionIds) {

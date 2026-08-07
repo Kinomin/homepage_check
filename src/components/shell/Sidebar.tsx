@@ -14,11 +14,14 @@ export function Sidebar({
   lastScan,
   nextScan,
   crawlDepth,
+  account,
 }: {
   schoolName: string;
   lastScan: string;
   nextScan: string | null;
   crawlDepth: number;
+  /** ログイン中のアカウント。認証を使わない構成では null */
+  account: { email: string; role: 'admin' | 'viewer' | null } | null;
 }) {
   const pathname = usePathname();
 
@@ -68,6 +71,19 @@ export function Sidebar({
         NEXT SCAN　<b>{nextScan ? formatDateTime(nextScan) : '自動実行なし'}</b>
         <br />
         CRAWL DEPTH　<b>{crawlDepth}</b>
+        {account && (
+          <>
+            <div className="divider" style={{ margin: '10px 0' }} />
+            <span title={account.email}>{account.email}</span>
+            {account.role && <b>　{account.role === 'admin' ? '管理者' : '閲覧者'}</b>}
+            <br />
+            <form action="/api/auth/signout" method="post" style={{ marginTop: 6 }}>
+              <button type="submit" className="side-signout">
+                ログアウト
+              </button>
+            </form>
+          </>
+        )}
       </div>
     </aside>
   );

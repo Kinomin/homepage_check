@@ -10,7 +10,7 @@ import { personaKey, type Persona, type PersonaGender, type PersonaStage } from 
 import type { GapRow } from '../analysis/summary';
 import { isAnthropicConfigured } from '../env';
 import { loadSettings } from './settings-repository';
-import { createServerClient } from '../supabase/server';
+import { createDataClient } from '../supabase/server';
 import { DEMO_PERSONAS } from './demo-personas';
 
 /** 生成済みのペルソナ。デモ／未接続時はプロセス内に保持する。 */
@@ -27,7 +27,7 @@ export interface PersonaSource {
 }
 
 export async function loadPersonas(): Promise<PersonaSource> {
-  const supabase = createServerClient();
+  const supabase = await createDataClient();
   if (supabase) {
     const { data } = await supabase
       .from('personas')
@@ -98,7 +98,7 @@ export async function regeneratePersonas(params: {
     }
   }
 
-  const supabase = createServerClient();
+  const supabase = await createDataClient();
   if (supabase && generated.length > 0) {
     await supabase.from('personas').insert(
       generated.map((persona) => ({

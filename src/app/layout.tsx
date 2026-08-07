@@ -1,9 +1,5 @@
 import type { Metadata } from 'next';
 
-import { Sidebar } from '@/components/shell/Sidebar';
-import { loadDashboard } from '@/lib/data/repository';
-import { loadSettings } from '@/lib/data/settings-repository';
-import { nextScanAt } from '@/lib/settings';
 import './globals.css';
 
 /**
@@ -17,16 +13,12 @@ export const metadata: Metadata = {
   description: '私立中高一貫校の入試広報担当者向け、学校ホームページ分析ツール',
 };
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const { schools, scan } = await loadDashboard();
-  const { settings } = await loadSettings();
-  // 次回走査は設定のスケジュールから算出する（手動のみなら null）
-  const nextScan = nextScanAt(
-    settings.schedule.selfFrequency,
-    settings.schedule,
-    new Date(scan.startedAt),
-  );
-
+/**
+ * ここには分析画面の枠（サイドバー）を置かない。
+ * ログイン画面と初回の学校登録は、まだ見るデータが無い状態で開くため。
+ * 枠は (app)/layout.tsx が持つ。
+ */
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ja">
       <head>
@@ -39,17 +31,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           rel="stylesheet"
         />
       </head>
-      <body>
-        <div className="shell">
-          <Sidebar
-            schoolName={schools[0]?.name ?? '—'}
-            lastScan={scan.startedAt}
-            nextScan={nextScan ? nextScan.toISOString() : null}
-            crawlDepth={settings.crawl.maxDepth}
-          />
-          <main className="main">{children}</main>
-        </div>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

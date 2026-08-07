@@ -9,7 +9,7 @@
  * 画面が見る形（RankingRow）は変えなくてよい。
  */
 
-import { createServerClient } from '../supabase/server';
+import { createDataClient } from '../supabase/server';
 import { DEMO_RANKINGS } from './demo-extras';
 import type { KeywordType, School } from '../types';
 
@@ -50,7 +50,7 @@ const demoRankings: { rows: RankingRow[] } = ((
  * 自校がどれかを判定する必要があるため、学校一覧を受け取る。
  */
 export async function loadRankings(schools: School[] = []): Promise<RankingRow[]> {
-  const supabase = createServerClient();
+  const supabase = await createDataClient();
   if (!supabase) return demoRankings.rows;
 
   const selfSchool = schools.find((school) => school.role === 'self');
@@ -100,7 +100,7 @@ export async function loadRankings(schools: School[] = []): Promise<RankingRow[]
  * （自校と、指定された比較校のぶん）。同じキーワード・同じ測定日の記録は上書きする。
  */
 export async function saveRanking(row: RankingRow, schools: School[] = []): Promise<void> {
-  const supabase = createServerClient();
+  const supabase = await createDataClient();
   if (!supabase) {
     const index = demoRankings.rows.findIndex((r) => r.keyword === row.keyword);
     if (index === -1) demoRankings.rows.push(row);
