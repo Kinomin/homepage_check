@@ -80,9 +80,9 @@ export const SCREENS: Record<ScreenId, Screen> = {
     no: '05',
     code: '05 ／ PERSONA',
     title: 'ペルソナ仮説',
-    sub: '6つの目線でサイトを読み直します（Phase 2）',
+    sub: '6つの目線でサイトを読み直します',
     href: '/persona',
-    phase1: false,
+    phase1: true,
   },
   action: {
     id: 'action',
