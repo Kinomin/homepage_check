@@ -173,8 +173,14 @@ export function ActionList({
                           <li key={step}>{step}</li>
                         ))}
                       </ul>
-                      <h4>文案</h4>
-                      <div className="copy">{action.copy}</div>
+                      {/* 文案は学校の実際の日程・施設・呼称が必要なため生成しない。
+                          空のときは見出しも出さない（handoff.md 10章-5）。 */}
+                      {action.copy.trim() && (
+                        <>
+                          <h4>文案</h4>
+                          <div className="copy">{action.copy}</div>
+                        </>
+                      )}
                       <div className="meta">
                         <span>
                           PRIORITY <b>{PRIORITY_LABEL[action.priority]}</b>

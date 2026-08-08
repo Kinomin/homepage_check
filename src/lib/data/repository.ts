@@ -8,13 +8,15 @@
  * 状態変更はどちらの画面からでも同じ更新口（updateActionStatus）を通す。
  */
 
-import { CRITERIA, CRITERIA_BY_ID } from '../analysis/criteria';
+import { CRITERIA_BY_ID } from '../analysis/criteria';
+import { actionKeyToCriterionId, buildActionText } from '../analysis/derive-actions';
 import type { DiscoveryPage } from '../analysis/discovery';
 import type { GapRow } from '../analysis/summary';
 import { createDataClient } from '../supabase/server';
 import type { Action, ActionStatus, Level, Measurement, School } from '../types';
 import { DEMO_ACTIONS, DEMO_GAP_ROWS, DEMO_MEASUREMENTS, DEMO_SCAN, DEMO_SCHOOL_NAMES } from './demo';
 import { demoDiscoveryPages } from './demo-extras';
+import { loadGapRows, loadLatestScans } from './gap-rows';
 
 export interface ScanMeta {
   startedAt: string;
@@ -155,77 +157,42 @@ async function loadFromSupabase(): Promise<Dashboard | null> {
     })
     .sort((a, b) => (a.role === 'self' ? -1 : b.role === 'self' ? 1 : a.sortOrder - b.sortOrder));
 
-  // 各校の最新スキャン
-  const { data: scans } = await supabase
-    .from('scans')
-    .select('id, school_id, started_at, status, page_count, indexed_count, image_count, pdf_only_count, crawl_depth')
-    .in('school_id', schools.map((s) => s.id))
-    .eq('status', 'done')
-    .order('started_at', { ascending: false });
-
-  type ScanRow = NonNullable<typeof scans>[number];
-  const latestScanBySchool = new Map<string, ScanRow>();
-  for (const scan of scans ?? []) {
-    if (!latestScanBySchool.has(scan.school_id)) latestScanBySchool.set(scan.school_id, scan);
-  }
+  // 各校の最新スキャン（走り切ったものだけ）
+  const latestScanBySchool = await loadLatestScans(
+    supabase,
+    schools.map((s) => s.id),
+  );
   const selfScan = latestScanBySchool.get(schools[0].id);
   if (!selfScan) return null;
 
-  const scanIds = schools
-    .map((s) => latestScanBySchool.get(s.id)?.id)
-    .filter((id): id is string => Boolean(id));
-
-  const { data: findings } = await supabase
-    .from('findings')
-    .select('scan_id, criterion_id, level, evidence_text, evidence_urls')
-    .in('scan_id', scanIds);
-
-  type FindingRow = NonNullable<typeof findings>[number];
-  const findingByScanAndCriterion = new Map<string, FindingRow>();
-  for (const finding of findings ?? []) {
-    findingByScanAndCriterion.set(`${finding.scan_id}:${finding.criterion_id}`, finding);
-  }
-
-  const gapRows: GapRow[] = CRITERIA.map((criterion) => {
-    const cells = schools.map((school) => {
-      const scanId = latestScanBySchool.get(school.id)?.id;
-      // 走査結果がない学校は unknown。none（欠落）にしない。
-      if (!scanId) return null;
-      return findingByScanAndCriterion.get(`${scanId}:${criterion.id}`) ?? null;
-    });
-    return {
-      criterion,
-      levels: cells.map((cell) => (cell?.level as Level) ?? 'unknown'),
-      evidence: cells.map((cell) =>
-        cell
-          ? {
-              text: cell.evidence_text as string,
-              source: ((cell.evidence_urls as string[]) ?? []).join(' ｜ ') || 'サイト全体を走査',
-            }
-          : null,
-      ),
-    };
-  });
+  const gapRows = await loadGapRows(supabase, schools, latestScanBySchool);
+  const gapRowByCriterionId = new Map(gapRows.map((row) => [row.criterion.id, row]));
 
   const { data: actionRows } = await supabase
     .from('actions')
-    .select('id, action_key, priority, difficulty, source, source_criterion_id, status')
+    .select('id, action_key, priority, difficulty, source, source_criterion_id, status, assignee_note')
     .eq('scan_id', selfScan.id);
 
-  // 本文（why / how / 文案）はアクション定義カタログ側が持つ。
-  // DB には状態と分類のみを持たせ、文言の二重管理を避ける。
+  // 本文は保存しない。判定結果から組み立て直す（derive-actions.ts）。
+  // DB には状態と分類だけを持たせ、同じ文言を2箇所で管理しない。
   const actions: Action[] = (actionRows ?? []).flatMap((row) => {
-    const template = DEMO_ACTIONS.find((a) => a.id === row.action_key);
-    if (!template) return [];
+    const criterionId =
+      (row.source_criterion_id as string | null) ?? actionKeyToCriterionId(String(row.action_key));
+    const gapRow = criterionId ? gapRowByCriterionId.get(criterionId) : undefined;
+    // 対応する調査項目が引けない行は出さない（見出しだけの空のカードを作らない）
+    if (!gapRow) return [];
     return [
       {
-        ...template,
+        ...buildActionText(gapRow),
         id: String(row.id),
         priority: row.priority as Action['priority'],
         difficulty: row.difficulty as Action['difficulty'],
         source: row.source as Action['source'],
-        sourceCriterionId: (row.source_criterion_id as string) ?? null,
+        sourceCriterionId: criterionId,
         status: row.status as ActionStatus,
+        // 文案は学校の実際の日程・施設・呼称が必要なため導出しない。
+        // 校内で書き足したものを assignee_note に持つ。
+        copy: (row.assignee_note as string | null) ?? '',
       },
     ];
   });
@@ -264,14 +231,14 @@ async function loadFromSupabase(): Promise<Dashboard | null> {
   return {
     schools,
     scan: {
-      startedAt: selfScan.started_at,
+      startedAt: selfScan.startedAt,
       nextScanAt: null,
-      crawlDepth: selfScan.crawl_depth,
-      pageCount: selfScan.page_count,
-      indexedCount: selfScan.indexed_count,
-      imageCount: selfScan.image_count,
+      crawlDepth: selfScan.crawlDepth,
+      pageCount: selfScan.pageCount,
+      indexedCount: selfScan.indexedCount,
+      imageCount: selfScan.imageCount,
       imageWithoutAltCount: 0,
-      pdfOnlyCount: selfScan.pdf_only_count,
+      pdfOnlyCount: selfScan.pdfOnlyCount,
       updates90d: 0,
       newsCategories: 0,
       mobileLcpSeconds: null,

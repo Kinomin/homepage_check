@@ -13,6 +13,7 @@
  * （handoff.md 4章）。
  */
 
+import { syncActionsForScannedSchools } from '../data/action-writer';
 import { loadPreviousFindings, persistScanOutcome } from '../data/scan-writer';
 import { runScan } from '../judge/pipeline';
 import { isScanDue, nextScanAt, type OrgSettings, type ScanFrequency } from '../settings';
@@ -166,6 +167,10 @@ export interface ScanRunResult {
   entries: ScanRunEntry[];
   /** 最後まで走り切れなかった学校（blocked も含む。人が見るべきもの） */
   failures: ScanRunEntry[];
+  /** 走査後に作り直した改善アクションの件数（導出しなかった場合は null） */
+  actionsDerived: number | null;
+  /** 改善アクションの導出でつまずいた理由。走査自体は成功として扱う */
+  actionSyncError: string | null;
 }
 
 /**
@@ -186,12 +191,33 @@ export async function runDueScans(
     entries.push(await scanOne(school, settings));
   }
 
+  // 改善アクションは走査が一巡したあとに導出する。
+  // 優先度は比較校の公開状況で決まるので、1校ずつでは確定できない。
+  const scanned = entries.filter((entry) => entry.status === 'done').map((entry) => entry.schoolId);
+  let actionsDerived: number | null = null;
+  let actionSyncError: string | null = null;
+  if (scanned.length > 0) {
+    try {
+      const synced = await syncActionsForScannedSchools(scanned);
+      actionsDerived = synced.reduce((total, result) => total + result.count, 0);
+      if (synced.length > 0) {
+        hooks.onProgress?.(`改善アクションを導出: ${actionsDerived}件`);
+      }
+    } catch (error) {
+      // 走査結果は保存できている。導出だけの失敗で走査を失敗扱いにしない。
+      actionSyncError = error instanceof Error ? error.message : String(error);
+      hooks.onProgress?.(`改善アクションの導出に失敗: ${actionSyncError}`);
+    }
+  }
+
   return {
     startedAt,
     finishedAt: new Date().toISOString(),
     dueCount: due.length,
     entries,
     failures: entries.filter((entry) => entry.status !== 'done'),
+    actionsDerived,
+    actionSyncError,
   };
 }
 

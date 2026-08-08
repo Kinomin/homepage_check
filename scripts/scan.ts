@@ -19,6 +19,7 @@
  */
 
 import type { CrawlOptions } from '../src/lib/crawl/crawler';
+import { syncActionsForScannedSchools } from '../src/lib/data/action-writer';
 import { loadPreviousFindings, persistScanOutcome } from '../src/lib/data/scan-writer';
 import { loadSettings } from '../src/lib/data/settings-repository';
 import { isAnthropicConfigured } from '../src/lib/env';
@@ -97,6 +98,17 @@ async function main() {
       ? `Supabase に保存しました（scan_id=${saved.location}）`
       : `保存しました: ${saved.location}`,
   );
+
+  // 改善アクション（06）を作り直す。優先度は比較校の公開状況で決まるため、
+  // 保存済みの他校の判定結果も合わせて見る必要がある。
+  if (schoolId && saved.target === 'supabase' && outcome.crawl.status === 'done') {
+    const synced = await syncActionsForScannedSchools([schoolId]);
+    for (const result of synced) {
+      console.log(
+        `改善アクションを導出: ${result.count}件（対応済みの引き継ぎ ${result.carriedOverDone}件）`,
+      );
+    }
+  }
 }
 
 main().catch((error) => {

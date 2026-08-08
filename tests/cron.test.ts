@@ -117,6 +117,8 @@ function result(entries: ScanRunEntry[]): ScanRunResult {
     startedAt: '2026-08-10T21:00:00.000Z',
     finishedAt: '2026-08-10T21:12:00.000Z',
     dueCount: entries.length,
+    actionsDerived: null,
+    actionSyncError: null,
     entries,
     failures: entries.filter((entry) => entry.status !== 'done'),
   };
