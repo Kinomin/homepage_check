@@ -15,7 +15,7 @@
 import { readdir } from 'node:fs/promises';
 import path from 'node:path';
 
-import { Client } from 'pg';
+import { connect, describeConnectionError } from '../src/lib/db/connection';
 
 type Status = 'ok' | 'skip' | 'ng';
 
@@ -55,19 +55,15 @@ async function checkDatabase(): Promise<Check[]> {
     ];
   }
 
-  const client = new Client({
-    connectionString,
-    ssl: connectionString.includes('localhost') ? undefined : { rejectUnauthorized: false },
-  });
-
+  let client;
   try {
-    await client.connect();
+    client = await connect(connectionString);
   } catch (error) {
     return [
       {
         name: 'データベース接続',
         status: 'ng',
-        detail: error instanceof Error ? error.message : String(error),
+        detail: describeConnectionError(error),
         hint: 'DATABASE_URL のホスト名・パスワードを確認してください',
       },
     ];

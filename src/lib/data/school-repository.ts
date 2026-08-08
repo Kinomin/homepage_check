@@ -3,8 +3,8 @@
  *
  * 守ること（handoff.md 3章・7章）
  * ・比較校は5校まで。DB のトリガでも制限しているが、画面でも先に止める
- * ・比較校として登録された事実は相手校に通知しない。登録は org_schools に閉じ、
- *   schools（組織横断のマスタ）には「誰が登録したか」を持たせない
+ * ・比較校として登録された事実は相手校に通知しない。学校の行は組織ごとに持ち、
+ *   「誰が登録したか」を相手から辿れる情報は残さない
  * ・同じ学校を二重に登録しない。URL の正規化で突き合わせる
  */
 
@@ -42,7 +42,7 @@ export async function loadOrgSchools(): Promise<OrgSchools | null> {
 
 /**
  * 学校を1件登録し、組織に紐付ける。
- * 同じ URL の学校がマスタにあれば作らずに使い回す（比較校は他組織と共有されうる）。
+ * 行は組織ごとに作る（他組織の行を使い回さない：0008_schools_per_org.sql）。
  */
 export async function addSchool(
   input: SchoolInput,
@@ -74,32 +74,26 @@ export async function addSchool(
     return { ok: false, error: 'この学校はすでに登録されています' };
   }
 
-  const { data: existing } = await supabase
+  // 他組織が作った行は使い回さない。使い回すと、
+  // ・相手が付けた学校名をそのまま掴む（誤った名前が入りうる）
+  // ・走査結果が組織をまたいで共有され、走査の間隔も他組織に左右される
+  // 組織ごとに1行持つ（0008_schools_per_org.sql）。
+  const { data: created, error } = await supabase
     .from('schools')
+    .insert({
+      name: validated.name,
+      url: validated.url,
+      prefecture: validated.prefecture ?? null,
+      school_type: validated.schoolType ?? null,
+      coed_type: validated.coedType ?? null,
+      has_junior_admission: validated.hasJuniorAdmission ?? true,
+      has_senior_admission: validated.hasSeniorAdmission ?? true,
+      has_affiliated_university: validated.hasAffiliatedUniversity ?? false,
+    })
     .select('id')
-    .eq('url', validated.url)
-    .limit(1)
-    .maybeSingle();
-
-  let schoolId = existing?.id as string | undefined;
-  if (!schoolId) {
-    const { data: created, error } = await supabase
-      .from('schools')
-      .insert({
-        name: validated.name,
-        url: validated.url,
-        prefecture: validated.prefecture ?? null,
-        school_type: validated.schoolType ?? null,
-        coed_type: validated.coedType ?? null,
-        has_junior_admission: validated.hasJuniorAdmission ?? true,
-        has_senior_admission: validated.hasSeniorAdmission ?? true,
-        has_affiliated_university: validated.hasAffiliatedUniversity ?? false,
-      })
-      .select('id')
-      .single();
-    if (error || !created) return { ok: false, error: error?.message ?? '学校の登録に失敗しました' };
-    schoolId = created.id as string;
-  }
+    .single();
+  if (error || !created) return { ok: false, error: error?.message ?? '学校の登録に失敗しました' };
+  const schoolId = created.id as string;
 
   const { data: membership } = await supabase
     .from('organization_members')
@@ -114,23 +108,41 @@ export async function addSchool(
     role,
     sort_order: role === 'self' ? 0 : current.competitors.length + 1,
   });
-  if (linkError) return { ok: false, error: linkError.message };
+  if (linkError) {
+    // 紐付けに失敗したら、さきに作った学校の行を残さない。
+    // org_schools が無い行はどの組織からも見えないため、
+    // 放置すると誰も気づけないゴミが増える。
+    await supabase.from('schools').delete().eq('id', schoolId);
+    return { ok: false, error: linkError.message };
+  }
 
   return { ok: true };
 }
 
-/** 比較校を外す。schools マスタからは消さない（他組織が使っていることがある）。 */
+/**
+ * 比較校を外す。
+ *
+ * 学校の行は組織ごとに持っているので（0008_schools_per_org.sql）、
+ * 行ごと消す。org_schools は on delete cascade で一緒に消える。
+ * 共有していた頃は行を残していたが、いまは残すとゴミになる。
+ *
+ * 自校は外せない。外すと走査対象が無くなり、画面がすべて空になる。
+ */
 export async function removeCompetitor(
   schoolId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const supabase = await createSessionClient();
   if (!supabase) return { ok: false, error: 'Supabase が未接続です' };
 
-  const { error } = await supabase
+  const { data: link } = await supabase
     .from('org_schools')
-    .delete()
+    .select('role')
     .eq('school_id', schoolId)
-    .eq('role', 'competitor');
+    .maybeSingle();
+  if (!link) return { ok: false, error: '対象の学校が見つかりません' };
+  if (link.role !== 'competitor') return { ok: false, error: '自校は外せません' };
+
+  const { error } = await supabase.from('schools').delete().eq('id', schoolId);
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }

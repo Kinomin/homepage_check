@@ -18,7 +18,7 @@ import { createHash } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { Client } from 'pg';
+import { connect, describeConnectionError } from '../src/lib/db/connection';
 
 const MIGRATIONS_DIR = path.join(process.cwd(), 'supabase', 'migrations');
 const SEED_FILE = path.join(process.cwd(), 'supabase', 'seed', 'criteria.sql');
@@ -48,12 +48,7 @@ async function main() {
     process.exit(1);
   }
 
-  const client = new Client({
-    connectionString,
-    // Supabase は TLS 必須。自己署名の中間証明書を使う構成があるため検証は緩める
-    ssl: connectionString.includes('localhost') ? undefined : { rejectUnauthorized: false },
-  });
-  await client.connect();
+  const client = await connect(connectionString);
 
   try {
     await client.query(`
@@ -136,6 +131,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
+  console.error(describeConnectionError(error));
   process.exit(1);
 });
