@@ -15,12 +15,30 @@ type Mode = 'signin' | 'signup';
  * フォームを出さずにその旨を説明する。押せるのに何も起きない入力欄を作らない
  * （handoff.md 10章-5）。
  */
-export function SignInForm({ authEnabled, next }: { authEnabled: boolean; next: string }) {
+export function SignInForm({
+  authEnabled,
+  next,
+  linkError,
+}: {
+  authEnabled: boolean;
+  next: string;
+  /** 確認メールのリンクで戻ってきたが交換に失敗した場合の理由 */
+  linkError?: string;
+}) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(
+    linkError === 'link-expired'
+      ? {
+          kind: 'error',
+          text: 'メールのリンクが期限切れか、すでに使われています。もう一度ログインを試してください。',
+        }
+      : linkError === 'missing-code'
+        ? { kind: 'error', text: 'メールのリンクが正しく開けませんでした。もう一度お試しください。' }
+        : null,
+  );
   const [pending, startPending] = useTransition();
 
   function submit() {
@@ -30,7 +48,16 @@ export function SignInForm({ authEnabled, next }: { authEnabled: boolean; next: 
     startPending(async () => {
       setMessage(null);
       if (mode === 'signup') {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            // 確認メールのリンクをこのアプリの受け口に戻す。
+            // 指定しないと Supabase の Site URL 直下に戻り、code を
+            // セッションに交換できないまま /signin に送り返される。
+            emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+          },
+        });
         if (error) {
           setMessage({ kind: 'error', text: error.message });
           return;

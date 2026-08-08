@@ -8,6 +8,7 @@
  * ・同じ学校を二重に登録しない。URL の正規化で突き合わせる
  */
 
+import { getCurrentSession } from '../auth/session';
 import {
   MAX_COMPETITORS,
   normalizeSchoolUrl,
@@ -74,47 +75,29 @@ export async function addSchool(
     return { ok: false, error: 'この学校はすでに登録されています' };
   }
 
-  // 他組織が作った行は使い回さない。使い回すと、
-  // ・相手が付けた学校名をそのまま掴む（誤った名前が入りうる）
-  // ・走査結果が組織をまたいで共有され、走査の間隔も他組織に左右される
-  // 組織ごとに1行持つ（0008_schools_per_org.sql）。
-  const { data: created, error } = await supabase
-    .from('schools')
-    .insert({
-      name: validated.name,
-      url: validated.url,
-      prefecture: validated.prefecture ?? null,
-      school_type: validated.schoolType ?? null,
-      coed_type: validated.coedType ?? null,
-      has_junior_admission: validated.hasJuniorAdmission ?? true,
-      has_senior_admission: validated.hasSeniorAdmission ?? true,
-      has_affiliated_university: validated.hasAffiliatedUniversity ?? false,
-    })
-    .select('id')
-    .single();
-  if (error || !created) return { ok: false, error: error?.message ?? '学校の登録に失敗しました' };
-  const schoolId = created.id as string;
+  // 学校の作成と紐付けは1トランザクションで行う（0009_atomic_registration.sql）。
+  // 分けて書き込むと、紐付けに失敗したときにどこからも見えない学校の行が残る。
+  // その行は schools_delete の条件（自組織が登録している学校）も満たさないため、
+  // アプリからは片付けられない。
+  //
+  // 他組織が作った行は使い回さない。使い回すと、相手が付けた学校名を掴み、
+  // 走査結果と走査の間隔が組織をまたいで混ざる（0008_schools_per_org.sql）。
+  const orgId = (await getCurrentSession())?.membership?.orgId;
+  if (!orgId) return { ok: false, error: '所属する学校法人が見つかりません' };
 
-  const { data: membership } = await supabase
-    .from('organization_members')
-    .select('org_id')
-    .limit(1)
-    .maybeSingle();
-  if (!membership) return { ok: false, error: '所属する学校法人が見つかりません' };
-
-  const { error: linkError } = await supabase.from('org_schools').insert({
-    org_id: membership.org_id,
-    school_id: schoolId,
-    role,
-    sort_order: role === 'self' ? 0 : current.competitors.length + 1,
+  const { error } = await supabase.rpc('add_school_to_org', {
+    p_org_id: orgId,
+    p_name: validated.name,
+    p_url: validated.url,
+    p_role: role,
+    p_prefecture: validated.prefecture ?? null,
+    p_school_type: validated.schoolType ?? null,
+    p_coed_type: validated.coedType ?? null,
+    p_has_junior_admission: validated.hasJuniorAdmission ?? true,
+    p_has_senior_admission: validated.hasSeniorAdmission ?? true,
+    p_has_affiliated_university: validated.hasAffiliatedUniversity ?? false,
   });
-  if (linkError) {
-    // 紐付けに失敗したら、さきに作った学校の行を残さない。
-    // org_schools が無い行はどの組織からも見えないため、
-    // 放置すると誰も気づけないゴミが増える。
-    await supabase.from('schools').delete().eq('id', schoolId);
-    return { ok: false, error: linkError.message };
-  }
+  if (error) return { ok: false, error: error.message };
 
   return { ok: true };
 }
@@ -168,26 +151,23 @@ export async function createOrganization(
     return { ok: false, error: error instanceof Error ? error.message : '入力を確認してください' };
   }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: 'ログインが必要です' };
+  // 学校法人・管理者・自校をまとめて作る（0009_atomic_registration.sql）。
+  // 分けて書き込むと、途中で失敗したときに「自校の無い学校法人」が残る。
+  // その状態は初回登録の画面にも戻れず、行き止まりになる。
+  const { error } = await supabase.rpc('create_organization_with_school', {
+    p_org_name: name,
+    p_name: validated.name,
+    p_url: validated.url,
+    p_prefecture: validated.prefecture ?? null,
+    p_school_type: validated.schoolType ?? null,
+    p_coed_type: validated.coedType ?? null,
+    p_has_junior_admission: validated.hasJuniorAdmission ?? true,
+    p_has_senior_admission: validated.hasSeniorAdmission ?? true,
+    p_has_affiliated_university: validated.hasAffiliatedUniversity ?? false,
+  });
+  if (error) return { ok: false, error: error.message };
 
-  const { data: organization, error } = await supabase
-    .from('organizations')
-    .insert({ name })
-    .select('id')
-    .single();
-  if (error || !organization) {
-    return { ok: false, error: error?.message ?? '学校法人の登録に失敗しました' };
-  }
-
-  const { error: memberError } = await supabase
-    .from('organization_members')
-    .insert({ org_id: organization.id, user_id: user.id, role: 'admin' });
-  if (memberError) return { ok: false, error: memberError.message };
-
-  return addSchool(validated, 'self');
+  return { ok: true };
 }
 
 type OrgSchoolRow = { role: string; sort_order: number; schools: unknown };

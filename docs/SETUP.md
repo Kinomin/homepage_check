@@ -80,8 +80,15 @@ Authentication → Providers → **Email** を有効にする。
 |---|---|---|
 | Confirm email | **有効** | 学校の担当者以外が勝手に登録するのを防ぐ |
 | Site URL | 本番URL（開発中は `http://localhost:3000`） | 確認メールのリンク先になる |
-| Redirect URLs | 上と同じ | ここに無いURLへは戻せない |
+| Redirect URLs | **`<Site URL>/auth/callback`** を追加 | ここに無いURLへは戻せない |
 
+> **Redirect URLs に `/auth/callback` を必ず入れる。**
+> 確認メールのリンクは `<アプリ>/auth/callback?code=...` に戻り、アプリが
+> その `code` をセッションに交換してログイン状態にする。
+> 登録されていないと Supabase がそのURLへ戻さないため、**登録を完了できない。**
+>
+> 開発と本番の両方を使うなら、両方の `/auth/callback` を登録しておく。
+>
 > Confirm email を有効にすると、新規登録の直後はログイン状態になりません。
 > アプリはその場合「確認メールを送りました」と案内します。
 
@@ -160,7 +167,7 @@ DB には既に流れたものが残っているため、**変更は新しい番
 npm run doctor
 ```
 
-「マイグレーション 8件すべて適用済み」「調査項目 31件」と出れば完了。
+「マイグレーション 10件すべて適用済み」「調査項目 31件」と出れば完了。
 
 ---
 
@@ -290,7 +297,7 @@ Authentication → URL Configuration を Vercel が発行したURLに変更す�
 `localhost` のままだと確認メールのリンクがローカルを指す。
 
 - **Site URL** … `https://【Vercelのドメイン】`
-- **Redirect URLs** … 同じものを追加
+- **Redirect URLs** … `https://【Vercelのドメイン】/auth/callback` を追加
 
 ### 7-3. 走査を GitHub Actions に登録する
 

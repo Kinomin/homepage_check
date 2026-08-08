@@ -28,9 +28,10 @@ const STASH = path.join(ROOT, '.static-demo-stash');
 const MOVES = [
   { from: 'src/app/api', to: 'api' },
   { from: 'src/middleware.ts', to: 'middleware.ts' },
-  // ログインと初回登録はサーバが要る。静的デモには含めない
+  // ログイン・初回登録・確認メールの受け口はサーバが要る。静的デモには含めない
   { from: 'src/app/signin', to: 'signin' },
   { from: 'src/app/onboarding', to: 'onboarding' },
+  { from: 'src/app/auth', to: 'auth' },
 ];
 
 /** force-dynamic を外すファイル。静的書き出しと両立しない */
