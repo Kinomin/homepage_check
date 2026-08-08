@@ -16,7 +16,8 @@
     "init:env": "tsx scripts/init-env.ts",
     "db:migrate": "tsx --env-file-if-exists=.env.local scripts/db-migrate.ts",
     "doctor": "tsx --env-file-if-exists=.env.local scripts/doctor.ts",
-    "build:demo": "tsx scripts/build-static-demo.ts"
+    "build:demo": "tsx scripts/build-static-demo.ts",
+    "vercel-build": "tsx scripts/vercel-build.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

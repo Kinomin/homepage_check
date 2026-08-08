@@ -24,26 +24,30 @@ npm run doctor
 | 4 | Claude API キーを取る | 人 | — |
 | 5 | 学校を登録する | 人 | 画面から |
 | 6 | 最初の走査を流す | — | `npm run scan:due -- --run` |
-| 7 | デプロイと自動実行 | 人 | cron 定義は同梱 |
+| 7 | デプロイ（これ以降コマンド不要） | 人 | ワークフローは同梱 |
 
 ---
 
-## 置く場所の選び方
+## 置く場所と役割
 
-| | 置く場所 | できること |
+実際に運用する構成は3つに分かれる。**設定が済めば、以降はURLを開くだけ。**
+ローカルで何かを起動する必要はない。
+
+| 何を | どこで | なぜそこか |
 |---|---|---|
-| 画面を見せたいだけ | GitHub Pages | サンプルデータの表示と操作 |
-| 実際に運用する | Vercel など | ログイン・走査・LLM判定・自動実行 |
+| 画面（URL） | Vercel | 常時稼働。push すれば自動でデプロイされる |
+| データ | Supabase | Postgres と認証。RLS で組織を分離する |
+| 走査（定期実行） | GitHub Actions | サーバレスの実行時間上限を避けるため |
 
-GitHub Pages はファイルを配るだけでサーバを持たない。走査（外部サイトへのアクセス）、
-LLM判定、ログイン、データの保存はいずれもサーバが要るため、Pages では動かない。
+走査を Vercel の関数で回さないのは、31項目 × 校数のLLM判定とクロールを
+1リクエストで終わらせるには数十分かかり、関数の上限（Vercel Pro でも 800 秒）を
+超えるため。GitHub Actions なら1ジョブ数時間使える。
 
-公開デモを出すには、GitHub の **Settings → Pages → Source** を「GitHub Actions」にして
-`main` に push するだけ。あとは `.github/workflows/pages.yml` が公開する。
-URL は `https://<ユーザー名>.github.io/homepage_check/`。
+デプロイのたびにマイグレーションが自動で当たるので、`npm run db:migrate` を
+手で叩くのは**手元で試すときだけ**。
 
-**この手順書の 1. 以降は「実際に運用する」場合の作業。**
-画面を見せるだけなら、上の公開デモで足りる。
+> 画面だけ見せたい場合は GitHub Pages の公開デモもある（`.github/workflows/pages.yml`）。
+> ただしサーバが無いのでログイン・走査・LLM判定は動かない。詳細は README。
 
 ---
 
@@ -228,44 +232,109 @@ npm run scan -- --url https://example.ed.jp --name 学校名 --role self
 
 ---
 
-## 7. デプロイと自動実行（人の作業）
+## 7. デプロイ（人の作業・1回だけ）
 
-### Vercel
+ここまで済むと、**あとは常時アクセスできるURLになる。**
+以降コマンドを叩く必要はない。push すればマイグレーションもデプロイも自動で走る。
 
-1. GitHub リポジトリを Vercel に接続する
-2. **Settings → Environment Variables** に次を設定する（`DATABASE_URL` は不要）
+役割は3つに分けている。
 
-```
-NEXT_PUBLIC_SUPABASE_URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY
-SUPABASE_SERVICE_ROLE_KEY
-ANTHROPIC_API_KEY
-CRAWL_USER_AGENT
-CRON_SECRET          ← .env.local と同じ値
-```
+| 何を | どこで | なぜ |
+|---|---|---|
+| 画面（URL） | Vercel | 常時稼働。開くだけで見られる |
+| データ | Supabase | 1. で作ったもの |
+| 走査（定期実行） | GitHub Actions | サーバレスの実行時間上限を避けるため |
 
-3. デプロイすると `vercel.json` の cron が自動で登録される（1時間ごと `/api/cron/scan`）
+### 7-1. Vercel に載せる
 
-`CRON_SECRET` が未設定だと自動実行は無効（503）になる。
-走査は外部サイトへのリクエストを伴うため、誰でも叩ける口は開けていない。
+1. <https://vercel.com> に GitHub アカウントでログイン
+2. **Add New → Project** から `homepage_check` を Import
+3. **Environment Variables** に次を貼る（`.env.local` の値をそのまま）
 
-### Supabase の Site URL を本番URLに変える
+| 変数 | 備考 |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | |
+| `SUPABASE_SERVICE_ROLE_KEY` | |
+| `ANTHROPIC_API_KEY` | |
+| `CRAWL_USER_AGENT` | 自校の連絡先URL |
+| `DATABASE_URL` | **Production のみ**にチェック |
 
-1. で `localhost` にしていた場合、Authentication → URL Configuration を本番URLに変更する。
-変えないと確認メールのリンクがローカルを指したままになる。
+4. **Deploy** を押す
+
+`vercel.json` の Build Command が `scripts/vercel-build.ts` を指しているので、
+**デプロイのたびに未適用のマイグレーションが自動で当たる。**
+`npm run db:migrate` を手で叩く必要はもうない。
+
+流さない条件も決めてある。プレビュー環境のビルドが本番のデータベースを
+書き換えないようにするため。
+
+| 状況 | 動き |
+|---|---|
+| Production デプロイ | 適用する |
+| Preview デプロイ（PR など） | 適用しない |
+| `DATABASE_URL` が無い | 適用しない（ビルドは続く） |
+| `SKIP_DB_MIGRATE=1` | 適用しない |
+
+`DATABASE_URL` を Production のみにしているのはこのため。
+
+### 7-2. Supabase の Site URL を本番URLに変える
+
+Authentication → URL Configuration を Vercel が発行したURLに変更する。
+`localhost` のままだと確認メールのリンクがローカルを指す。
+
+- **Site URL** … `https://【Vercelのドメイン】`
+- **Redirect URLs** … 同じものを追加
+
+### 7-3. 走査を GitHub Actions に登録する
+
+走査は Vercel の関数では回さない。31項目 × 校数のLLM判定とクロールを
+1リクエストで終わらせるには数十分かかり、関数の実行時間上限
+（Vercel Pro でも 800 秒）を超えるため。GitHub Actions なら1ジョブ数時間使える。
+
+GitHub リポジトリの **Settings → Secrets and variables → Actions → New repository secret**
+に4つ登録する。
+
+| Secret | 値 |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | `.env.local` と同じ |
+| `SUPABASE_SERVICE_ROLE_KEY` | 同じ |
+| `ANTHROPIC_API_KEY` | 同じ |
+| `CRAWL_USER_AGENT` | 同じ |
+
+これで `.github/workflows/scan.yml` が毎日 6:00（日本時間）に起動する。
+実際に走るのはスケジュールに達した学校だけで、判断はアプリ側の設定に従う。
+
+すぐ試すには **Actions → 走査（スケジュール実行）→ Run workflow**。
+`dry_run` にチェックを入れると対象の確認だけで走査しない。
+
+> 設定画面で実行時刻を変えた場合は、`scan.yml` の cron（`0 21 * * *` = 6:00 JST）も
+> 合わせると無駄な起動が減る。合わせなくても動く（次の起動時に走る）。
+
+### 7-4. 確認
+
+- Vercel のURLを開く → ログイン画面が出る
+- ログイン → 登録した学校のデータが出る
+- Actions を手動実行 → 走査が走り、画面が実データに変わる
+
+以降は**URLを開くだけ**。ローカルで何かを起動する必要はない。
 
 ### Vercel を使わない場合
 
-`/api/cron/scan` を1時間ごとに叩くだけでよい。crontab の例：
+Node が動く場所ならどこでもよい（Render・Fly.io・自前のサーバなど）。
 
-```cron
-0 * * * * curl -fsS -X POST -H "authorization: Bearer $CRON_SECRET" https://【本番URL】/api/cron/scan
+```bash
+npm ci
+npm run db:migrate
+npm run build
+npm start          # 既定で 3000 番
 ```
 
-あるいはアプリを動かしているサーバで直接：
+常時稼働させるには systemd や pm2 などでプロセスを保つ。
+走査は GitHub Actions のままでよいし、そのサーバの crontab でもよい。
 
 ```cron
-0 * * * * cd /path/to/app && npm run scan:due -- --run
+0 6 * * * cd /path/to/app && npm run scan:due -- --run
 ```
 
 ### 失敗したときの通知（任意）
@@ -276,6 +345,21 @@ CRON_SECRET          ← .env.local と同じ値
 - 通知に載るのは**学校名・結末・理由だけ**。ページ本文は送らない
 - 毎回は送らない。失敗があったときだけ送る
 - 通知先が未設定でも、実行の記録は設定画面に残る
+
+---
+
+## 無料枠で気をつけること
+
+| | 制限 | 影響と対処 |
+|---|---|---|
+| Supabase Free | **7日間アクセスが無いとプロジェクトが一時停止** | 毎日の走査がアクセスになるので、Actions を登録してあれば止まらない |
+| Supabase Free | ストレージ 500MB | ページ本文を保存しない設計なので、当面は届かない |
+| Vercel Hobby | cron は1日1回まで | 走査は Actions に置いているので影響しない |
+| Vercel Hobby | 商用利用は不可 | 学校法人での運用は Pro が必要 |
+| GitHub Actions | 公開リポジトリは無料 | 非公開なら月2,000分。走査は1回あたり数分〜数十分 |
+
+**Supabase の一時停止**は「URLを開いたら壊れている」の典型的な原因になる。
+走査の定期実行を止める場合は、代わりに何かで定期的にアクセスする必要がある。
 
 ---
 

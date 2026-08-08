@@ -6,13 +6,21 @@ import { notifyScanRun, recordScanRun, summarizeRun } from '@/lib/scan/notify';
 import { loadScanTargets, runDueScans, selectDueSchools } from '@/lib/scan/runner';
 
 /**
- * 自動実行の入口。cron から1時間ごとに叩く想定（vercel.json 参照）。
+ * 自動実行の入口。外部の cron から叩く。
  *
  * この経路も CLI（`npm run scan:due -- --run`）も、同じ runner を通る。
  * 判断も実行も1箇所に置き、自動実行のときだけ挙動が違う状態を作らない。
  *
  * 走査は外部サイトへのリクエストを伴うため、実行してよいのは cron だけに絞る。
  * CRON_SECRET が未設定なら実行しない（誰でも叩ける口を開けない）。
+ *
+ * ただしサーバレス環境では**時間切れになりうる**。
+ * 31項目 × 校数のLLM判定と、1秒間隔のクロールを1リクエストで終わらせるには
+ * 数十分かかることがあり、関数の上限（Vercel Pro でも 800 秒）を超える。
+ * 定期実行は .github/workflows/scan.yml（GitHub Actions）に置いてあり、
+ * そちらは時間の上限が緩いので走査が途中で切れない。
+ *
+ * この口は、自前のサーバから叩く場合や、自校のみの小さい走査に使う。
  */
 export const maxDuration = 800;
 

@@ -1,0 +1,58 @@
+name: 走査（スケジュール実行）
+
+# 走査は GitHub Actions で回す。Vercel の関数には実行時間の上限があり、
+# 31項目 × 校数のLLM判定を1回のリクエストで終わらせるのは無理があるため。
+# Actions なら1ジョブ6時間まで使えるので、走査が途中で切れる心配がない。
+#
+# どの学校をいつ走査するかの判断はアプリ側（settings.ts の isScanDue）が持つ。
+# ここは「毎日1回起こす」だけで、実際に走るのはスケジュールに達した学校のみ。
+
+on:
+  schedule:
+    # 21:00 UTC = 翌6:00 JST。設定画面の既定の実行時刻に合わせている。
+    # 設定で実行時刻を変えた場合は、ここも合わせると無駄な起動が減る。
+    - cron: '0 21 * * *'
+  # 手で走らせたいとき用
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: '対象を確認するだけ（走査しない）'
+        type: boolean
+        default: false
+
+# 走査が重なると相手校への同時接続数が設定値を超える
+concurrency:
+  group: scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    # 走査は時間がかかる。既定の6時間より短く切って、異常時に気づけるようにする
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: 走査対象を確認
+        run: npm run scan:due
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CRAWL_USER_AGENT: ${{ secrets.CRAWL_USER_AGENT }}
+
+      - name: 走査を実行
+        if: ${{ !inputs.dry_run }}
+        run: npm run scan:due -- --run
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CRAWL_USER_AGENT: ${{ secrets.CRAWL_USER_AGENT }}

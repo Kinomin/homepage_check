@@ -79,18 +79,29 @@ npm run dev                  # http://localhost:3000
 
 ## 公開URL
 
-用途が2つあり、置く場所が違う。
+**設定が済めば、以降はURLを開くだけ。** ローカルで何かを起動する必要はない。
+構成は3つに分かれる。
 
-| | URL | できること |
+| 何を | どこで | なぜそこか |
 |---|---|---|
-| **公開デモ** | `https://<user>.github.io/homepage_check/` | 全画面の表示と操作。サンプルデータ |
-| **本体** | Vercel などにデプロイ | ログイン・走査・LLM判定・自動実行 |
+| 画面（URL） | Vercel | 常時稼働。push すれば自動でデプロイされる |
+| データ | Supabase | Postgres と認証。RLS で組織を分離する |
+| 走査（定期実行） | GitHub Actions | サーバレスの実行時間上限を避けるため |
 
-GitHub Pages はファイルを配るだけでサーバを持たない。ログイン・サイトの走査・
-LLM判定はサーバが要るので、Pages に置けるのは**サンプルデータの表示まで**。
-本体を動かすには [docs/SETUP.md](docs/SETUP.md) の手順で Supabase を接続する。
+- **デプロイのたびにマイグレーションが自動で当たる**（`vercel.json` の Build Command が
+  `scripts/vercel-build.ts` を指している）。Production デプロイのときだけ流し、
+  プレビュー環境のビルドは本番のデータベースに触らない
+- **走査は `.github/workflows/scan.yml`** が毎日 6:00（日本時間）に起動する。
+  Vercel の関数で回さないのは、31項目 × 校数のLLM判定とクロールが
+  関数の実行時間上限（Pro でも 800 秒）を超えるため
 
-### 公開デモの出し方
+手順は **[docs/SETUP.md](docs/SETUP.md)** の 7. にまとめてある。1回で終わる。
+
+### 画面だけ見せたい場合（サンプルデータ）
+
+サーバを持たない GitHub Pages にも出せる。ログイン・走査・LLM判定は動かない。
+
+`https://<user>.github.io/homepage_check/`
 
 `main` に push すると `.github/workflows/pages.yml` が公開する。
 初回だけ GitHub の設定が必要（1回のみ）:
@@ -125,8 +136,9 @@ npm run doctor      # どこまで設定できているかを点検する
 | `npm run typecheck` / `npm run lint` | 型検査／Lint |
 | `npm run scan -- --url https://example.ed.jp --name 学校名 --role self` | 1校の走査と判定を実行 |
 | `npm run scan:due` | 設定のスケジュールに従い、いま走査すべき学校を一覧表示（`-- --run` で実行） |
-| `POST /api/cron/scan` | 同じ処理の自動実行版。`CRON_SECRET` による Bearer 認証（`vercel.json` の cron が1時間ごとに起動） |
+| `POST /api/cron/scan` | 同じ処理を外部の cron から叩く口。`CRON_SECRET` による Bearer 認証。定期実行は GitHub Actions に置いている（サーバレスの実行時間上限を避けるため） |
 | `npm run build:demo` | サンプルデータ版を静的書き出し（GitHub Pages 用） |
+| `npm run vercel-build` | 本番ビルド。マイグレーション適用 → `next build`（Vercel が呼ぶ） |
 | `npm run init:env` | `.env.local` の雛形を作る。`CRON_SECRET` は生成する |
 | `npm run db:migrate` | 未適用のマイグレーションを順に適用し、シードを流す（`-- --dry` で確認のみ） |
 | `npm run doctor` | 設定・接続・マイグレーション・走査実績を点検する |
@@ -276,9 +288,14 @@ PDF をサーバ側で生成していないのは、ヘッドレスブラウザ�
 
 ## 自動実行
 
-`vercel.json` の cron が1時間ごとに `/api/cron/scan` を叩き、上のスケジュールに達した
-学校だけを走査する。CLI（`npm run scan:due -- --run`）も同じ `src/lib/scan/runner.ts` を通る。
-判断も実行も1箇所に置き、自動実行のときだけ挙動が違う状態を作らない。
+定期実行は `.github/workflows/scan.yml`（GitHub Actions）が毎日 6:00（日本時間）に
+`npm run scan:due -- --run` を回す。外部から叩く口として `/api/cron/scan` も用意してあり、
+CLI・cron・Actions のいずれも同じ `src/lib/scan/runner.ts` を通る。
+判断も実行も1箇所に置き、経路によって挙動が違う状態を作らない。
+
+Vercel の関数で走査を回していないのは、31項目 × 校数のLLM判定と1秒間隔のクロールを
+1リクエストで終わらせるには数十分かかり、関数の実行時間上限（Pro でも 800 秒）を
+超えるため。GitHub Actions なら1ジョブ数時間使える。
 
 ```bash
 CRON_SECRET=$(openssl rand -hex 32)   # .env とデプロイ先の環境変数に設定する
