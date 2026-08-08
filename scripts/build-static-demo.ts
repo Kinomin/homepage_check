@@ -60,6 +60,29 @@ async function main() {
   const moved: { from: string; to: string }[] = [];
   const patched: { file: string; original: string }[] = [];
 
+  /**
+   * 脇に寄せたものと書き換えたものを戻す。
+   * finally だけでは Ctrl-C（SIGINT）で戻らず、API と middleware が
+   * 消えたままのリポジトリが残る。シグナルでも必ず通す。
+   */
+  let restored = false;
+  async function restore() {
+    if (restored) return;
+    restored = true;
+    for (const item of patched) await writeFile(item.file, item.original, 'utf8');
+    for (const item of [...moved].reverse()) await rename(item.to, item.from);
+    await rm(STASH, { recursive: true, force: true });
+  }
+
+  const onSignal = (signal: NodeJS.Signals) => {
+    void restore().then(() => {
+      console.error(`\n${signal} で中断しました。移動したファイルは元に戻しています。`);
+      process.exit(1);
+    });
+  };
+  process.once('SIGINT', onSignal);
+  process.once('SIGTERM', onSignal);
+
   await mkdir(STASH, { recursive: true });
 
   try {
@@ -83,6 +106,11 @@ async function main() {
       );
     }
 
+    // Next が生成したルートの型は、脇に寄せたファイル（/api・/signin など）を
+    // 参照している。残っていると型検査が「そんなモジュールは無い」で落ちる。
+    // dev サーバを一度動かした環境で必ず踏むため、生成物ごと捨てる。
+    await rm(path.join(ROOT, '.next'), { recursive: true, force: true });
+
     console.log(`静的デモをビルドします（basePath: ${basePath || '(なし)'}）\n`);
     await run('npx', ['next', 'build'], {
       STATIC_DEMO: '1',
@@ -93,11 +121,8 @@ async function main() {
     await writeFile(path.join(ROOT, 'out', '.nojekyll'), '', 'utf8');
     console.log('\nout/ に書き出しました。');
   } finally {
-    // 脇に寄せたものと書き換えたものを必ず戻す。
-    // ここで戻し損ねると、次の本番ビルドから API と middleware が消える。
-    for (const item of patched) await writeFile(item.file, item.original, 'utf8');
-    for (const item of moved.reverse()) await rename(item.to, item.from);
-    await rm(STASH, { recursive: true, force: true });
+    // 戻し損ねると、次の本番ビルドから API と middleware が消える
+    await restore();
   }
 }
 

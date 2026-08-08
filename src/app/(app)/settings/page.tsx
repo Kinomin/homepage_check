@@ -2,6 +2,7 @@ import { SettingsForm } from '@/components/settings/SettingsForm';
 import { DemoNote } from '@/components/shell/DemoNote';
 import { Topbar } from '@/components/shell/Topbar';
 import { CRITERIA } from '@/lib/analysis/criteria';
+import { canManage, getCurrentSession, isAuthEnabled } from '@/lib/auth/session';
 import { loadDashboard } from '@/lib/data/repository';
 import { loadRecentScanRuns } from '@/lib/data/scan-run-repository';
 import { loadSettings } from '@/lib/data/settings-repository';
@@ -12,6 +13,7 @@ export default async function SettingsPage() {
   const { schools, scan, isDemo } = await loadDashboard();
   const { settings, persisted } = await loadSettings();
   const recentRuns = await loadRecentScanRuns();
+  const session = isAuthEnabled() ? await getCurrentSession() : null;
   const competitorCount = schools.length - 1;
 
   return (
@@ -39,6 +41,7 @@ export default async function SettingsPage() {
           criteriaCount={CRITERIA.length}
           lastScanAt={scan.startedAt}
           cronEnabled={isCronConfigured()}
+          canManage={canManage(session)}
           recentRuns={recentRuns}
         />
       </div>

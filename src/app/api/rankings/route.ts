@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 
+import { canManage, getCurrentSession } from '@/lib/auth/session';
 import { loadRankings, saveRanking, type RankingRow } from '@/lib/data/ranking-repository';
 import { loadDashboard } from '@/lib/data/repository';
 
@@ -14,6 +15,10 @@ export async function GET() {
  * （手で直した値を上書きしないよう、記録日で新しい方を採る想定）。
  */
 export async function POST(request: Request) {
+  if (!canManage(await getCurrentSession())) {
+    return NextResponse.json({ error: '順位の記録は管理者のみ行えます' }, { status: 403 });
+  }
+
   const body = (await request.json().catch(() => null)) as RankingRow | null;
   if (!body?.keyword?.trim()) {
     return NextResponse.json({ error: '検索語は必須です' }, { status: 400 });

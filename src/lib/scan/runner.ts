@@ -19,41 +19,51 @@ import { isScanDue, nextScanAt, type OrgSettings, type ScanFrequency } from '../
 import { createServiceClient } from '../supabase/server';
 import type { School } from '../types';
 
+/** 1つの学校法人ぶんの走査対象 */
+export interface ScanTargetGroup {
+  orgId: string;
+  orgName: string;
+  schools: School[];
+  lastScanBySchool: Map<string, Date>;
+}
+
 /**
- * 走査対象の学校と前回走査日時。
+ * 走査対象を**学校法人ごとに**まとめて返す。
+ *
+ * 走査はサービスキーで動くため RLS が効かない。組織で分けずに全件を取ると、
+ * ある組織の設定（走査頻度・クロール範囲）で別の組織の学校まで走査してしまう。
+ * 組織単位で分離するという前提（handoff.md 7章）はここでも守る必要がある。
+ *
  * Supabase が未接続なら走査対象を確定できないため null を返す
  * （デモデータで自動走査を始めてしまわないようにする）。
  */
-export async function loadScanTargets(): Promise<{
-  schools: School[];
-  lastScanBySchool: Map<string, Date>;
-} | null> {
+export async function loadScanTargets(): Promise<ScanTargetGroup[] | null> {
   const supabase = createServiceClient();
   if (!supabase) return null;
 
   const { data: orgSchools, error } = await supabase
     .from('org_schools')
-    .select('role, sort_order, schools(*)')
+    .select('org_id, role, sort_order, schools(*), organizations(name)')
     .order('sort_order', { ascending: true });
   if (error) throw new Error(error.message);
 
-  const schools: School[] = (orgSchools ?? []).map((row) => {
-    const school = row.schools as unknown as Record<string, unknown>;
-    return {
-      id: String(school.id),
-      name: String(school.name),
-      url: String(school.url),
-      prefecture: (school.prefecture as string) ?? null,
-      schoolType: (school.school_type as string) ?? null,
-      coedType: (school.coed_type as string) ?? null,
-      hasJuniorAdmission: Boolean(school.has_junior_admission),
-      hasSeniorAdmission: Boolean(school.has_senior_admission),
-      hasAffiliatedUniversity: Boolean(school.has_affiliated_university),
-      robotsAllowed: Boolean(school.robots_allowed),
-      role: row.role as School['role'],
-      sortOrder: Number(row.sort_order),
-    };
-  });
+  const groups = new Map<string, ScanTargetGroup>();
+  for (const row of orgSchools ?? []) {
+    const orgId = String(row.org_id);
+    const organization = row.organizations as unknown as { name?: string } | null;
+    if (!groups.has(orgId)) {
+      groups.set(orgId, {
+        orgId,
+        orgName: String(organization?.name ?? orgId),
+        schools: [],
+        lastScanBySchool: new Map(),
+      });
+    }
+    groups.get(orgId)!.schools.push(toSchool(row));
+  }
+
+  const allSchoolIds = [...groups.values()].flatMap((g) => g.schools.map((s) => s.id));
+  if (allSchoolIds.length === 0) return [...groups.values()];
 
   // 前回走査は「走り切ったもの」だけを見る。
   // 失敗した走査を前回扱いにすると、次回まで再試行されなくなる。
@@ -61,10 +71,7 @@ export async function loadScanTargets(): Promise<{
     .from('scans')
     .select('school_id, started_at')
     .eq('status', 'done')
-    .in(
-      'school_id',
-      schools.map((s) => s.id),
-    )
+    .in('school_id', allSchoolIds)
     .order('started_at', { ascending: false });
 
   const lastScanBySchool = new Map<string, Date>();
@@ -73,8 +80,34 @@ export async function loadScanTargets(): Promise<{
       lastScanBySchool.set(scan.school_id, new Date(scan.started_at));
     }
   }
+  for (const group of groups.values()) {
+    for (const school of group.schools) {
+      const last = lastScanBySchool.get(school.id);
+      if (last) group.lastScanBySchool.set(school.id, last);
+    }
+  }
 
-  return { schools, lastScanBySchool };
+  return [...groups.values()];
+}
+
+type OrgSchoolRow = { role: string; sort_order: number; schools: unknown };
+
+function toSchool(row: OrgSchoolRow): School {
+  const school = row.schools as Record<string, unknown>;
+  return {
+    id: String(school.id),
+    name: String(school.name),
+    url: String(school.url),
+    prefecture: (school.prefecture as string) ?? null,
+    schoolType: (school.school_type as string) ?? null,
+    coedType: (school.coed_type as string) ?? null,
+    hasJuniorAdmission: Boolean(school.has_junior_admission),
+    hasSeniorAdmission: Boolean(school.has_senior_admission),
+    hasAffiliatedUniversity: Boolean(school.has_affiliated_university),
+    robotsAllowed: Boolean(school.robots_allowed),
+    role: row.role as School['role'],
+    sortOrder: Number(row.sort_order),
+  };
 }
 
 export interface DueSchool {

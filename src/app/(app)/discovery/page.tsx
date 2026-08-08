@@ -5,6 +5,7 @@ import { Topbar } from '@/components/shell/Topbar';
 import { CRITERIA } from '@/lib/analysis/criteria';
 import { analyzeDiscovery, findNamingGaps } from '@/lib/analysis/discovery';
 import { loadRankings } from '@/lib/data/ranking-repository';
+import { canManage, getCurrentSession, isAuthEnabled } from '@/lib/auth/session';
 import { loadDashboard } from '@/lib/data/repository';
 import { SCREENS } from '@/lib/screens';
 
@@ -31,6 +32,7 @@ export default async function DiscoveryPage() {
             rankings={rankings}
             selfName={selfName}
             competitorNames={schools.slice(1).map((s) => s.name)}
+            canManage={canManage(isAuthEnabled() ? await getCurrentSession() : null)}
           />
 
           {/* SE-03 名称のズレ */}

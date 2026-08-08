@@ -5,6 +5,7 @@
  * コストが積み上がるため、生成済みのものを保持し、明示的に再生成させる。
  */
 
+import { getCurrentSession } from '../auth/session';
 import { generatePersona } from '../persona/generate';
 import { personaKey, type Persona, type PersonaGender, type PersonaStage } from '../persona/types';
 import type { GapRow } from '../analysis/summary';
@@ -100,8 +101,17 @@ export async function regeneratePersonas(params: {
 
   const supabase = await createDataClient();
   if (supabase && generated.length > 0) {
-    await supabase.from('personas').insert(
+    // ペルソナは組織の分析結果。org_id を入れないと RLS で保存も読み出しもできない。
+    // 走査（scan_id）には紐付けない：複数回の走査結果をまとめた解釈であり、
+    // 特定の1走査に属するものではない。
+    const orgId = (await getCurrentSession())?.membership?.orgId;
+    if (!orgId) {
+      throw new Error('所属する学校法人が見つからないため、生成結果を保存できません');
+    }
+
+    const { error } = await supabase.from('personas').insert(
       generated.map((persona) => ({
+        org_id: orgId,
         stage: persona.stage,
         gender: persona.gender,
         quote: persona.quote,
@@ -109,6 +119,8 @@ export async function regeneratePersonas(params: {
         generated_at: persona.generatedAt,
       })),
     );
+    // 黙って捨てると、画面には出るが次に開くと消えている状態になる
+    if (error) throw new Error(error.message);
   }
 
   return {

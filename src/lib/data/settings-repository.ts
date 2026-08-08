@@ -31,12 +31,18 @@ export interface SettingsSource {
   updatedAt: string | null;
 }
 
-export async function loadSettings(): Promise<SettingsSource> {
+/**
+ * 設定を読む。
+ *
+ * 画面から呼ぶときは orgId を渡さない：RLS がログイン中の利用者の組織に絞る。
+ * 走査スクリプトはサービスキーで動き RLS が効かないため、**必ず orgId を渡す**。
+ * 渡さないと組織をまたいで1行目を拾い、他組織の設定で走査してしまう。
+ */
+export async function loadSettings(orgId?: string): Promise<SettingsSource> {
   const supabase = await createDataClient();
   if (supabase) {
-    const { data, error } = await supabase
-      .from('organization_settings')
-      .select('*')
+    const query = supabase.from('organization_settings').select('*');
+    const { data, error } = await (orgId ? query.eq('org_id', orgId) : query)
       .limit(1)
       .maybeSingle();
     if (!error && data) {

@@ -64,6 +64,10 @@ async function main() {
       )
     `);
 
+    // デプロイが2つ同時に走ると、同じマイグレーションを2回当てようとする。
+    // 先に取った方だけを通し、もう片方は待つ（接続が切れると自動で解放される）。
+    await client.query('select pg_advisory_lock(hashtext($1))', ['school-insight:migrate']);
+
     const { rows } = await client.query<{ version: string; checksum: string }>(
       'select version, checksum from schema_migrations',
     );

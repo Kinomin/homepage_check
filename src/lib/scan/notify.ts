@@ -49,22 +49,21 @@ export function needsAttention(result: ScanRunResult): boolean {
   );
 }
 
+/**
+ * 実行の記録。
+ * orgId は呼び出し側が渡す。ここで「1件目の組織」を拾うと、
+ * 別の組織の走査結果が他組織の記録として残る。
+ */
 export async function recordScanRun(
   result: ScanRunResult,
   trigger: 'cron' | 'manual',
+  orgId: string,
 ): Promise<void> {
   const supabase = createServiceClient();
   if (!supabase) return;
 
-  const { data: organization } = await supabase
-    .from('organizations')
-    .select('id')
-    .limit(1)
-    .maybeSingle();
-  if (!organization) return;
-
   const { error } = await supabase.from('scan_runs').insert({
-    org_id: organization.id,
+    org_id: orgId,
     trigger,
     started_at: result.startedAt,
     finished_at: result.finishedAt,

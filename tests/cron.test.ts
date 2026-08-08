@@ -56,6 +56,23 @@ describe('走査対象の判定', () => {
     expect(due.find((entry) => entry.school.id === 'rival')?.due).toBe(false);
   });
 
+  it('組織ごとに別の設定を適用できる（設定を混ぜない）', () => {
+    // 走査はサービスキーで動き RLS が効かないため、組織の分離はコード側で保つ。
+    // A学園は自校週次、B学園は手動のみ、という状態を取り違えないこと。
+    const weekly = settings;
+    const manual: OrgSettings = {
+      ...settings,
+      schedule: { ...settings.schedule, selfFrequency: 'manual' },
+    };
+    const now = fromJst(2026, 8, 7, 9);
+
+    const orgA = selectDueSchools([school('a-self', 'self')], new Map(), weekly, now);
+    const orgB = selectDueSchools([school('b-self', 'self')], new Map(), manual, now);
+
+    expect(orgA[0].due).toBe(true);
+    expect(orgB[0].due).toBe(false);
+  });
+
   it('手動のみに設定した対象は自動実行から外れる', () => {
     const manual: OrgSettings = {
       ...settings,

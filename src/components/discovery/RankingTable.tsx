@@ -20,10 +20,13 @@ export function RankingTable({
   rankings,
   selfName,
   competitorNames,
+  canManage,
 }: {
   rankings: RankingRow[];
   selfName: string;
   competitorNames: string[];
+  /** 順位を記録できる権限があるか（管理者のみ：handoff.md 7章） */
+  canManage: boolean;
 }) {
   const router = useRouter();
   const [saving, startSaving] = useTransition();
@@ -222,7 +225,7 @@ export function RankingTable({
                 <button
                   className="btn"
                   onClick={save}
-                  disabled={saving || !draft.keyword.trim() || IS_STATIC_DEMO}
+                  disabled={saving || !draft.keyword.trim() || IS_STATIC_DEMO || !canManage}
                 >
                   {saving ? '記録中…' : '記録する'}
                 </button>
@@ -230,6 +233,11 @@ export function RankingTable({
               </div>
             </div>
           </div>
+        )}
+        {!canManage && (
+          <p className="setting-note">
+            順位の記録は管理者のみ行えます。閲覧者の権限では一覧の確認のみです。
+          </p>
         )}
         <StaticDemoNote what="順位の記録" />
       </div>

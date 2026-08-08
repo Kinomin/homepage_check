@@ -40,6 +40,7 @@ export function SettingsForm({
   criteriaCount,
   lastScanAt,
   cronEnabled,
+  canManage,
   recentRuns,
 }: {
   initialSettings: OrgSettings;
@@ -49,6 +50,8 @@ export function SettingsForm({
   lastScanAt: string;
   /** 自動実行が有効か（CRON_SECRET の有無） */
   cronEnabled: boolean;
+  /** 設定を変更できる権限があるか（管理者のみ：handoff.md 7章） */
+  canManage: boolean;
   /** 直近の実行記録。走査の失敗に気づけるようにする */
   recentRuns: ScanRunRecord[];
 }) {
@@ -188,7 +191,7 @@ export function SettingsForm({
           <div className="setting-row">
             <div className="setting-label">
               自動実行
-              <small>cron が1時間ごとに起動し、上のスケジュールに達した学校だけを走査します</small>
+              <small>週1回（月曜 6時）に起動し、上のスケジュールに達した学校だけを走査します</small>
             </div>
             <span
               className="tag"
@@ -451,7 +454,7 @@ export function SettingsForm({
             <button
               className="btn"
               onClick={save}
-              disabled={saving || !dirty || IS_STATIC_DEMO}
+              disabled={saving || !dirty || IS_STATIC_DEMO || !canManage}
             >
               {saving ? '保存中…' : '設定を保存する'}
             </button>
@@ -480,6 +483,11 @@ export function SettingsForm({
               </span>
             )}
           </div>
+          {!canManage && (
+            <p className="setting-note">
+              設定の変更は管理者のみ行えます。閲覧者の権限では内容の確認のみです。
+            </p>
+          )}
           <StaticDemoNote what="設定の値" />
         </div>
       </div>

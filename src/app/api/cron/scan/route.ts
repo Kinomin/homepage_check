@@ -40,34 +40,37 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: '認証に失敗しました' }, { status: 401 });
   }
 
-  const targets = await loadScanTargets();
-  if (!targets) {
+  const groups = await loadScanTargets();
+  if (!groups) {
     return NextResponse.json(
       { error: 'Supabase が未接続のため、走査対象を確定できません' },
       { status: 503 },
     );
   }
 
-  const { settings } = await loadSettings();
   const now = new Date();
-  const due = selectDueSchools(targets.schools, targets.lastScanBySchool, settings, now).filter(
-    (entry) => entry.due,
-  );
+  const runs: { org: string; dueCount: number; summary: string }[] = [];
 
-  const result = await runDueScans(due, settings);
-  await recordScanRun(result, 'cron');
+  // 学校法人ごとに、その組織の設定で判定・実行する。
+  // この経路はサービスキーで動くため RLS が効かない。組織を分けずに回すと、
+  // ある組織の設定で別の組織の学校まで走査してしまう（handoff.md 7章）。
+  for (const group of groups) {
+    const { settings } = await loadSettings(group.orgId);
+    const due = selectDueSchools(group.schools, group.lastScanBySchool, settings, now).filter(
+      (entry) => entry.due,
+    );
 
-  const notified = await notifyScanRun(
-    result,
-    settings.notify.onFailure ? settings.notify.webhookUrl || null : null,
-  );
+    const result = await runDueScans(due, settings);
+    await recordScanRun(result, 'cron', group.orgId);
+    await notifyScanRun(
+      result,
+      settings.notify.onFailure ? settings.notify.webhookUrl || null : null,
+    );
 
-  return NextResponse.json({
-    dueCount: result.dueCount,
-    summary: summarizeRun(result),
-    entries: result.entries,
-    notified,
-  });
+    runs.push({ org: group.orgName, dueCount: result.dueCount, summary: summarizeRun(result) });
+  }
+
+  return NextResponse.json({ organizations: runs.length, runs });
 }
 
 /** Vercel Cron は GET で叩くため、同じ処理を GET でも受ける。 */
