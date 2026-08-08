@@ -1,0 +1,47 @@
+{
+  "name": "school-insight",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "generate:demo": "node scripts/generate-demo.mjs",
+    "scan": "tsx --env-file-if-exists=.env.local scripts/scan.ts",
+    "scan:due": "tsx --env-file-if-exists=.env.local scripts/scan-due.ts",
+    "init:env": "tsx scripts/init-env.ts",
+    "db:migrate": "tsx --env-file-if-exists=.env.local scripts/db-migrate.ts",
+    "doctor": "tsx --env-file-if-exists=.env.local scripts/doctor.ts",
+    "build:demo": "tsx scripts/build-static-demo.ts",
+    "vercel-build": "tsx scripts/vercel-build.ts",
+    "keepalive": "tsx --env-file-if-exists=.env.local scripts/keepalive.ts",
+    "check:contrast": "tsx scripts/check-contrast.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.115.0",
+    "@supabase/ssr": "^0.12.4",
+    "@supabase/supabase-js": "^2.112.2",
+    "cheerio": "^1.2.0",
+    "next": "16.3.0",
+    "pg": "^8.22.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/pg": "^8.21.0",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.0",
+    "tailwindcss": "^4",
+    "tsx": "^4.23.9",
+    "typescript": "^5",
+    "vitest": "^4.1.10"
+  }
+}

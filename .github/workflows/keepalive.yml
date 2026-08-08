@@ -1,0 +1,38 @@
+name: データベースの死活アクセス
+
+# Supabase の無料プランは、一定期間アクセスが無いとプロジェクトを一時停止する。
+# 停止すると「URLを開いたら壊れている」状態になる。
+#
+# 走査は週1回（scan.yml）なので、その間隔が停止までの猶予（7日）と並ぶ。
+# 走査だけに頼らず、3日ごとに軽く触っておく。読むだけで書き込みはしない。
+#
+# 有料プランに上げた場合、このワークフローは不要（止めてよい）。
+
+on:
+  schedule:
+    # 3日ごと 21:00 UTC（= 翌6:00 JST）
+    - cron: '0 21 */3 * *'
+  workflow_dispatch:
+
+concurrency:
+  group: keepalive
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run keepalive
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

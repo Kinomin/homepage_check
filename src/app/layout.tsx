@@ -1,0 +1,37 @@
+import type { Metadata } from 'next';
+
+import './globals.css';
+
+/**
+ * 走査結果と対応済み状態は毎リクエスト読み直す。
+ * ビルド時に固定すると、01 と 06 の対応済みトグルが共有されなくなる。
+ */
+export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  title: 'School Insight AI ｜ 入試広報分析',
+  description: '私立中高一貫校の入試広報担当者向け、学校ホームページ分析ツール',
+};
+
+/**
+ * ここには分析画面の枠（サイドバー）を置かない。
+ * ログイン画面と初回の学校登録は、まだ見るデータが無い状態で開くため。
+ * 枠は (app)/layout.tsx が持つ。
+ */
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="ja">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        {/* App Router の root layout は全ページに適用されるため、この警告は当たらない */}
+        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+        <link
+          href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body>{children}</body>
+    </html>
+  );
+}

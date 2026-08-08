@@ -1,0 +1,75 @@
+name: 走査（スケジュール実行）
+
+# 走査は GitHub Actions で回す。Vercel の関数には実行時間の上限があり、
+# 31項目 × 校数のLLM判定を1回のリクエストで終わらせるのは無理があるため。
+# Actions なら1ジョブ6時間まで使えるので、走査が途中で切れる心配がない。
+#
+# どの学校をいつ走査するかの判断はアプリ側（settings.ts の isScanDue）が持つ。
+# ここは起こすだけで、実際に走るのはスケジュールに達した学校のみ。
+#
+# 走査の間隔は週1回のまま、失敗したときの拾い直しだけを別に用意している。
+# 仕組みは追加していない：前回走査として数えるのは「走り切った回」だけなので
+# （runner.ts の loadScanTargets が status='done' で絞っている）、
+# 失敗した学校は次に起きたときも対象のままになる。逆に成功した学校は
+# 次の月曜まで対象にならない。
+#
+#   月曜 … 本来の走査
+#   水曜・金曜 … 失敗した学校の拾い直し。全部成功していれば0校で終わる
+#
+# つまり拾い直しの回は、失敗が無ければ数秒で終わって何も走査しない。
+
+on:
+  schedule:
+    # 日曜 21:00 UTC = 月曜 6:00 JST（本来の走査）。
+    # 設定画面の既定（自校 週次・月曜・6時）に合わせている。
+    # 設定で曜日や時刻を変えた場合は、ここも合わせること。
+    - cron: '0 21 * * 0'
+    # 火・木 21:00 UTC = 水・金 6:00 JST（失敗した学校の拾い直し）。
+    # 全部成功していれば対象0校で終わる。
+    - cron: '0 21 * * 2,4'
+  # 手で走らせたいとき用
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: '対象を確認するだけ（走査しない）'
+        type: boolean
+        default: false
+
+# 走査が重なると相手校への同時接続数が設定値を超える
+concurrency:
+  group: scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    # 走査は時間がかかる。既定の6時間より短く切って、異常時に気づけるようにする
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: 走査対象を確認
+        run: npm run scan:due
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CRAWL_USER_AGENT: ${{ secrets.CRAWL_USER_AGENT }}
+
+      - name: 走査を実行
+        if: ${{ !inputs.dry_run }}
+        run: npm run scan:due -- --run
+        env:
+          # スケジュール起動か手動起動かを実行履歴に残す（設定画面の 09 に出る）
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CRAWL_USER_AGENT: ${{ secrets.CRAWL_USER_AGENT }}
