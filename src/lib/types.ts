@@ -192,15 +192,21 @@ export interface Measurement {
   key: string;
   label: string;
   note: string;
-  value: number;
+  /**
+   * 計測値。まだ測っていない指標は null。
+   * サンプル値で埋めない（架空の数値を本校の計測値として見せないため）。
+   */
+  value: number | null;
   unit: string;
-  /** 比較校の中央値 */
-  median: number;
+  /** 比較校の中央値。比較校の値が1つも無ければ null */
+  median: number | null;
   /** バーの上限（表示用のスケール） */
   scaleMax: number;
   /** 値が小さいほど良い指標か（バーの配色に使う） */
   lowerIsBetter: boolean;
   method: MeasurementMethod;
+  /** value が null のとき、なぜ測れていないかを画面に出す */
+  unmeasuredReason: string;
 }
 
 /* ===== 04 発見のされ方 ===== */

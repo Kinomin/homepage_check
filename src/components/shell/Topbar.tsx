@@ -37,8 +37,9 @@ export function Topbar({
         <Stat k="INDEXED" v={scan.indexedCount} em={`/${scan.pageCount}`} />
         <Stat k="IMAGES" v={scan.imageCount} />
         <Stat k="PDF ONLY" v={scan.pdfOnlyCount} />
-        <Stat k="UPDATES 90D" v={scan.updates90d} />
-        <Stat k="CATEGORIES" v={scan.newsCategories} />
+        {/* 未計測は 0 ではなく — と出す（測っていないことを 0件と読ませない） */}
+        <Stat k="UPDATES 90D" v={scan.updates90d ?? '—'} />
+        <Stat k="CATEGORIES" v={scan.newsCategories ?? '—'} />
         <Stat
           k="MOBILE LCP"
           v={scan.mobileLcpSeconds ?? '—'}

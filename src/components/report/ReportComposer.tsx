@@ -294,7 +294,8 @@ export function ReportComposer({ data }: { data: ReportBlockData }) {
                     <th>本校</th>
                     <th>比較{data.competitorNames.length}校 中央値</th>
                   </tr>
-                  {limit(data.measurements).map((measurement) => (
+                  {/* 未計測の指標はレポートに載せない（空欄の行を並べても読み手には使えない） */}
+                  {limit(measured(data.measurements)).map((measurement) => (
                     <tr key={measurement.key}>
                       <td>{measurement.label}</td>
                       <td>
@@ -302,14 +303,16 @@ export function ReportComposer({ data }: { data: ReportBlockData }) {
                         {measurement.unit}
                       </td>
                       <td>
-                        {measurement.median}
-                        {measurement.unit}
+                        {measurement.median === null ? '—' : `${measurement.median}${measurement.unit}`}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              <Trimmed total={data.measurements.length} shown={limit(data.measurements).length} />
+              <Trimmed
+                total={measured(data.measurements).length}
+                shown={limit(measured(data.measurements)).length}
+              />
               <p className="trimmed">
                 ※
                 クリック数は最短経路。表示速度のみ外部の測定ツールに依存し、測るたびに値が変動します。
@@ -431,4 +434,9 @@ export function ReportComposer({ data }: { data: ReportBlockData }) {
 function Trimmed({ total, shown }: { total: number; shown: number }) {
   if (total <= shown) return null;
   return <p className="trimmed">他 {total - shown} 件（1枚に収めるため省略。画面では全件表示）</p>;
+}
+
+/** 計測できた指標だけ（未計測の行はレポートに載せない） */
+function measured(measurements: Measurement[]): Measurement[] {
+  return measurements.filter((measurement) => measurement.value !== null);
 }

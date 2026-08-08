@@ -1,14 +1,13 @@
 import { DemoNote } from '@/components/shell/DemoNote';
 import { Topbar } from '@/components/shell/Topbar';
 import { CRITERIA } from '@/lib/analysis/criteria';
+import { DEMO_SELF_PATH, MEASUREMENT_METHOD_TARGETS } from '@/lib/data/demo-extras';
 import {
-  DEMO_PEER_COMPARISON,
-  DEMO_PEER_PATH,
-  DEMO_SELF_PATH,
-  DEMO_UPDATE_REALITY,
-  MEASUREMENT_METHOD_TARGETS,
+  REFERENCE_COMPARISON,
+  REFERENCE_PATH,
+  REFERENCE_UPDATE_PRACTICE,
   type PathStep,
-} from '@/lib/data/demo-extras';
+} from '@/lib/data/reference';
 import { loadDashboard } from '@/lib/data/repository';
 import { SCREENS } from '@/lib/screens';
 import {
@@ -27,6 +26,13 @@ const METHOD_TAG_CLASS: Record<MeasurementMethod, string> = {
 
 export default async function MeasurementPage() {
   const { schools, scan, measurements, isDemo } = await loadDashboard();
+  const valueOf = (key: string) => measurements.find((m) => m.key === key) ?? null;
+  const unitedValue = (key: string) => {
+    const measurement = valueOf(key);
+    return measurement?.value === null || !measurement ? null : measurement;
+  };
+  // 自校の経路図は操作の記録が必要。デモでは架空の経路を出し、本番では出さない。
+  const selfPath = isDemo ? DEMO_SELF_PATH : null;
 
   return (
     <>
@@ -48,27 +54,34 @@ export default async function MeasurementPage() {
             </div>
             <div className="card-b">
               <div className="paths">
-                <PathColumn
-                  title={`${schools[0]?.name ?? '自校'}（自校）`}
-                  clicks={DEMO_SELF_PATH.clicks}
-                  steps={DEMO_SELF_PATH.steps}
-                  isSelf
-                />
+                {selfPath ? (
+                  <PathColumn
+                    title={`${schools[0]?.name ?? '自校'}（自校）`}
+                    clicks={selfPath.clicks}
+                    steps={selfPath.steps}
+                    isSelf
+                  />
+                ) : (
+                  <SelfClickRecord
+                    schoolName={schools[0]?.name ?? '自校'}
+                    briefing={unitedValue('m01')}
+                    brochure={unitedValue('m02')}
+                  />
+                )}
                 <PathColumn
                   title="実在6校の標準形"
-                  clicks={DEMO_PEER_PATH.clicks}
-                  steps={DEMO_PEER_PATH.steps}
+                  clicks={REFERENCE_PATH.clicks}
+                  steps={REFERENCE_PATH.steps}
                 />
               </div>
               <div className="evidence" style={{ marginTop: 14 }}>
                 <div className="ttl">クリック数は最短経路で数えています</div>
                 <p>
                   外部予約サイトへ遷移する形は業界の標準です。学校向けの予約・出願サービスは1社が全国の大半を占めており、本校が特殊なわけではありません。
-                  <strong>差がついているのは遷移前の導線だけ</strong>です。会議で使う際は「最短でも
-                  {DEMO_SELF_PATH.clicks}クリック」という言い方が正確です。
+                  <strong>差がついているのは遷移前の導線だけ</strong>です。クリック数は実際に操作して数える指標のため、走査では出せません。
                 </p>
                 <div className="src">
-                  グローバルナビ構造およびトップページ構成を走査（測定方法：操作）
+                  実在6校の標準形はグローバルナビ構造およびトップページ構成の記録（測定方法：操作）
                 </div>
               </div>
             </div>
@@ -93,16 +106,22 @@ export default async function MeasurementPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {DEMO_PEER_COMPARISON.map((row) => (
-                    <tr key={row.school} style={row.isSelf ? { background: '#FDF8F9' } : undefined}>
-                      <td>{row.isSelf ? <b>{row.school}</b> : row.school}</td>
-                      <td className="n" style={row.isSelf ? { color: 'var(--rose)' } : undefined}>
-                        {row.toBriefing}
-                      </td>
+                  {/* 本校の行は計測値から出す。記録がなければ未記録と書く（サンプル値で埋めない） */}
+                  <tr style={{ background: 'var(--surface-2)' }}>
+                    <td>
+                      <b>本校</b>
+                    </td>
+                    <td className="n">{unitedValue('m01')?.value ?? '未記録'}</td>
+                    <td className="sub2">記録なし</td>
+                    <td className="n">{unitedValue('m02')?.value ?? '未記録'}</td>
+                    <td className="sub2">記録なし</td>
+                  </tr>
+                  {REFERENCE_COMPARISON.map((row) => (
+                    <tr key={row.school}>
+                      <td>{row.school}</td>
+                      <td className="n">{row.toBriefing}</td>
                       <td>{row.persistentLink}</td>
-                      <td className="n" style={row.isSelf ? { color: 'var(--rose)' } : undefined}>
-                        {row.toBrochure}
-                      </td>
+                      <td className="n">{row.toBrochure}</td>
                       <td>{row.reservation}</td>
                     </tr>
                   ))}
@@ -153,18 +172,27 @@ export default async function MeasurementPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {DEMO_UPDATE_REALITY.map((row) => (
-                    <tr key={row.aspect}>
-                      <td>
-                        {row.aspect}
-                        {row.note && <span className="sub2">{row.note}</span>}
-                      </td>
-                      <td className="n" style={{ color: 'var(--rose)' }}>
-                        {row.self}
-                      </td>
-                      <td>{row.peers}</td>
-                    </tr>
-                  ))}
+                  {REFERENCE_UPDATE_PRACTICE.map((row) => {
+                    const measurement = row.measurementKey
+                      ? unitedValue(row.measurementKey)
+                      : null;
+                    return (
+                      <tr key={row.aspect}>
+                        <td>
+                          {row.aspect}
+                          {row.note && <span className="sub2">{row.note}</span>}
+                        </td>
+                        <td className="n">
+                          {measurement ? (
+                            `${measurement.value}${measurement.unit}`
+                          ) : (
+                            <span className="unmeasured">未計測</span>
+                          )}
+                        </td>
+                        <td>{row.peers}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -245,9 +273,67 @@ function PathColumn({
   );
 }
 
+/**
+ * 本校のクリック数。走査では出せないため、記録があれば数値を、無ければ
+ * 何が必要かを書く。架空の経路図をここに出さない。
+ */
+function SelfClickRecord({
+  schoolName,
+  briefing,
+  brochure,
+}: {
+  schoolName: string;
+  briefing: Measurement | null;
+  brochure: Measurement | null;
+}) {
+  return (
+    <div className="path mine">
+      <div className="ph">
+        <span className="who2">{schoolName}（自校）</span>
+        <span className="cnt">
+          {briefing ? `${briefing.value}クリック` : <span className="unmeasured">未記録</span>}
+        </span>
+      </div>
+      <div className="step">
+        <span className="sl">
+          説明会の申込完了まで
+          <small>
+            {briefing
+              ? `${briefing.value}${briefing.unit}（操作の記録）`
+              : '実際に操作した記録が必要です'}
+          </small>
+        </span>
+      </div>
+      <div className="step">
+        <span className="sl">
+          学校案内を読み始めるまで
+          <small>
+            {brochure
+              ? `${brochure.value}${brochure.unit}（操作の記録）`
+              : '実際に操作した記録が必要です'}
+          </small>
+        </span>
+      </div>
+      <div className="step">
+        <span className="sl">
+          <small>
+            クリック数は走査では数えられません。スマートフォンで実際にたどった回数を記録すると、右の標準形と並べて比較できます。
+          </small>
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function MeasurementRow({ measurement }: { measurement: Measurement }) {
-  const width = Math.min(100, (measurement.value / measurement.scaleMax) * 100);
-  const medianLeft = Math.min(100, (measurement.median / measurement.scaleMax) * 100);
+  // 測っていない指標はサンプル値で埋めない。バーも出さず、理由だけを置く。
+  const measured = measurement.value !== null;
+  const width = measured ? Math.min(100, (measurement.value! / measurement.scaleMax) * 100) : 0;
+  const medianLeft =
+    measurement.median === null
+      ? null
+      : Math.min(100, (measurement.median / measurement.scaleMax) * 100);
+
   return (
     <div className="meas-row">
       <div>
@@ -256,21 +342,32 @@ function MeasurementRow({ measurement }: { measurement: Measurement }) {
             {MEASUREMENT_METHOD_LABEL[measurement.method]}
           </span>
           {measurement.label}
-          <small>{measurement.note}</small>
+          <small>{measured ? measurement.note : measurement.unmeasuredReason}</small>
         </div>
-        <div className="bar">
-          <i
-            className={`mine${measurement.lowerIsBetter ? '' : ' good'}`}
-            style={{ width: `${width}%` }}
-          />
-          <i className="avg" style={{ left: `${medianLeft}%` }} />
-        </div>
+        {measured ? (
+          <div className="bar">
+            <i
+              className={`mine${measurement.lowerIsBetter ? '' : ' good'}`}
+              style={{ width: `${width}%` }}
+            />
+            {medianLeft !== null && <i className="avg" style={{ left: `${medianLeft}%` }} />}
+          </div>
+        ) : (
+          <div className="bar bar-empty" />
+        )}
       </div>
       <div className="meas-val">
-        {measurement.value}
-        <small>
-          {measurement.unit}｜中央値 {measurement.median}
-        </small>
+        {measured ? (
+          <>
+            {measurement.value}
+            <small>
+              {measurement.unit}
+              {measurement.median === null ? '' : `｜中央値 ${measurement.median}`}
+            </small>
+          </>
+        ) : (
+          <span className="unmeasured">未計測</span>
+        )}
       </div>
     </div>
   );

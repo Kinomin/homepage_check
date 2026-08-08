@@ -203,8 +203,11 @@ table.gap tbody tr.catrow.hide{display:none}
 .bar .mine{background:var(--rose);opacity:.8}
 .bar .mine.good{background:var(--sage);opacity:.8}
 .bar .avg{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--blue);left:auto;border-radius:0}
+/* 未計測。値の代わりに空の目盛りだけを置き、サンプル値で埋めない */
+.bar.bar-empty{background:repeating-linear-gradient(90deg,#E9E3D9 0 4px,transparent 4px 8px)}
 .meas-val{text-align:right;font-family:var(--mono);font-size:15px;font-variant-numeric:tabular-nums}
 .meas-val small{display:block;font-family:var(--gothic);font-size:10.5px;color:var(--mute)}
+.meas-val .unmeasured{font-family:var(--gothic);font-size:12.5px;color:var(--mute)}
 
 /* ===== 検索 ===== */
 .serp{background:var(--surface-2);border:1px solid var(--line);border-radius:5px;padding:16px 18px}

@@ -11,6 +11,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import { deriveMeasurements } from '../analysis/measurements';
 import type { ExtractedPage } from '../crawl/extract';
 import type { ScanOutcome } from '../judge/pipeline';
 import { createServiceClient } from '../supabase/server';
@@ -88,6 +89,19 @@ export async function persistScanOutcome(
       })),
     );
     if (findingsError) throw new Error(findingsError.message);
+
+    // 03 の計測値。走査から出せる指標だけを入れる（出せないものは未計測のまま）。
+    const measurements = deriveMeasurements(
+      {
+        imageCount: outcome.crawl.stats.imageCount,
+        pageLastModified: outcome.crawl.pages.map((page) => page.lastModified),
+      },
+      new Date(),
+    );
+    const { error: measurementsError } = await supabase
+      .from('measurements')
+      .insert(measurements.map((measurement) => ({ scan_id: scan.id, ...measurement })));
+    if (measurementsError) throw new Error(measurementsError.message);
 
     return { target: 'supabase', location: String(scan.id) };
   }

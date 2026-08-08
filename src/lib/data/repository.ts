@@ -11,9 +11,17 @@
 import { CRITERIA_BY_ID } from '../analysis/criteria';
 import { actionKeyToCriterionId, buildActionText } from '../analysis/derive-actions';
 import type { DiscoveryPage } from '../analysis/discovery';
+import { composeMeasurements } from '../analysis/measurements';
 import type { GapRow } from '../analysis/summary';
 import { createDataClient } from '../supabase/server';
-import type { Action, ActionStatus, Level, Measurement, School } from '../types';
+import type {
+  Action,
+  ActionStatus,
+  Level,
+  Measurement,
+  MeasurementMethod,
+  School,
+} from '../types';
 import { DEMO_ACTIONS, DEMO_GAP_ROWS, DEMO_MEASUREMENTS, DEMO_SCAN, DEMO_SCHOOL_NAMES } from './demo';
 import { demoDiscoveryPages } from './demo-extras';
 import { loadGapRows, loadLatestScans } from './gap-rows';
@@ -27,8 +35,12 @@ export interface ScanMeta {
   imageCount: number;
   imageWithoutAltCount: number;
   pdfOnlyCount: number;
-  updates90d: number;
-  newsCategories: number;
+  /**
+   * 未計測は null。0 と書き分ける。
+   * 「更新0件」と「更新日が取れていない」は意味が違う（設計原則4）。
+   */
+  updates90d: number | null;
+  newsCategories: number | null;
   mobileLcpSeconds: number | null;
 }
 
@@ -217,16 +229,30 @@ async function loadFromSupabase(): Promise<Dashboard | null> {
     isPdf: Boolean(row.is_pdf),
   }));
 
+  // 03 の計測値。自校の値と、比較校の中央値を出すための値をまとめて読む。
+  // 中央値はデモの固定値ではなく、実際に走査できた比較校の値から出す。
+  const competitorScanIds = schools
+    .slice(1)
+    .map((school) => latestScanBySchool.get(school.id)?.id)
+    .filter((id): id is string => Boolean(id));
+
   const { data: measurementRows } = await supabase
     .from('measurements')
-    .select('key, value, unit, method')
-    .eq('scan_id', selfScan.id);
+    .select('scan_id, key, value, unit, method')
+    .in('scan_id', [selfScan.id, ...competitorScanIds]);
 
-  const measurements: Measurement[] = (measurementRows ?? []).flatMap((row) => {
-    const template = DEMO_MEASUREMENTS.find((m) => m.key === row.key);
-    if (!template) return [];
-    return [{ ...template, value: Number(row.value), unit: row.unit, method: row.method }];
-  });
+  const selfValues = new Map<string, { value: number; unit: string; method: MeasurementMethod }>();
+  const competitorValues = new Map<string, number[]>();
+  for (const row of measurementRows ?? []) {
+    const key = String(row.key);
+    const value = Number(row.value);
+    if (String(row.scan_id) === selfScan.id) {
+      selfValues.set(key, { value, unit: String(row.unit), method: row.method as MeasurementMethod });
+    } else {
+      competitorValues.set(key, [...(competitorValues.get(key) ?? []), value]);
+    }
+  }
+  const measurements = composeMeasurements(selfValues, competitorValues);
 
   return {
     schools,
@@ -237,14 +263,16 @@ async function loadFromSupabase(): Promise<Dashboard | null> {
       pageCount: selfScan.pageCount,
       indexedCount: selfScan.indexedCount,
       imageCount: selfScan.imageCount,
-      imageWithoutAltCount: 0,
+      imageWithoutAltCount: selfPages.reduce((total, page) => total + page.imageWithoutAltCount, 0),
       pdfOnlyCount: selfScan.pdfOnlyCount,
-      updates90d: 0,
-      newsCategories: 0,
-      mobileLcpSeconds: null,
+      // 計測できていない指標は null にする。0 と書くと「更新0件」「分類0」という
+      // 事実として読まれてしまう。
+      updates90d: selfValues.get('m03')?.value ?? null,
+      newsCategories: selfValues.get('m05')?.value ?? null,
+      mobileLcpSeconds: selfValues.get('m10')?.value ?? null,
     },
     gapRows,
-    measurements: measurements.length ? measurements : DEMO_MEASUREMENTS,
+    measurements,
     actions,
     selfPages,
     isDemo: false,

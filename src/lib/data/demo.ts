@@ -429,7 +429,8 @@ export const DEMO_MEASUREMENTS: Measurement[] = [
       "median": 2,
       "scaleMax": 6,
       "lowerIsBetter": true,
-      "method": "operate"
+      "method": "operate",
+      "unmeasuredReason": ""
     },
     {
       "key": "m02",
@@ -440,18 +441,20 @@ export const DEMO_MEASUREMENTS: Measurement[] = [
       "median": 1,
       "scaleMax": 6,
       "lowerIsBetter": true,
-      "method": "operate"
+      "method": "operate",
+      "unmeasuredReason": ""
     },
     {
       "key": "m03",
       "label": "直近90日の更新件数",
-      "note": "お知らせ・ブログ・行事報告の合計",
+      "note": "更新日を取得できたページの件数",
       "value": 12,
       "unit": "件",
       "median": 34,
       "scaleMax": 60,
       "lowerIsBetter": true,
-      "method": "scan"
+      "method": "scan",
+      "unmeasuredReason": ""
     },
     {
       "key": "m04",
@@ -462,7 +465,8 @@ export const DEMO_MEASUREMENTS: Measurement[] = [
       "median": 22,
       "scaleMax": 40,
       "lowerIsBetter": true,
-      "method": "scan"
+      "method": "scan",
+      "unmeasuredReason": ""
     },
     {
       "key": "m05",
@@ -473,7 +477,8 @@ export const DEMO_MEASUREMENTS: Measurement[] = [
       "median": 5,
       "scaleMax": 10,
       "lowerIsBetter": true,
-      "method": "scan"
+      "method": "scan",
+      "unmeasuredReason": ""
     },
     {
       "key": "m06",
@@ -484,18 +489,20 @@ export const DEMO_MEASUREMENTS: Measurement[] = [
       "median": 1,
       "scaleMax": 20,
       "lowerIsBetter": true,
-      "method": "scan"
+      "method": "scan",
+      "unmeasuredReason": ""
     },
     {
       "key": "m07",
       "label": "掲載写真の点数",
-      "note": "サイト全体（バナー・アイコンを除く）",
+      "note": "サイト全体（バナー・アイコンを含む）",
       "value": 186,
       "unit": "点",
       "median": 412,
       "scaleMax": 600,
       "lowerIsBetter": true,
-      "method": "scan"
+      "method": "scan",
+      "unmeasuredReason": ""
     },
     {
       "key": "m08",
@@ -506,7 +513,8 @@ export const DEMO_MEASUREMENTS: Measurement[] = [
       "median": 7,
       "scaleMax": 14,
       "lowerIsBetter": true,
-      "method": "scan"
+      "method": "scan",
+      "unmeasuredReason": ""
     },
     {
       "key": "m09",
@@ -517,7 +525,8 @@ export const DEMO_MEASUREMENTS: Measurement[] = [
       "median": 11,
       "scaleMax": 30,
       "lowerIsBetter": false,
-      "method": "scan"
+      "method": "scan",
+      "unmeasuredReason": ""
     },
     {
       "key": "m10",
@@ -528,7 +537,8 @@ export const DEMO_MEASUREMENTS: Measurement[] = [
       "median": 2.6,
       "scaleMax": 6,
       "lowerIsBetter": true,
-      "method": "external"
+      "method": "external",
+      "unmeasuredReason": ""
     }
   ];
 
