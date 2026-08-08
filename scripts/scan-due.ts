@@ -4,9 +4,9 @@
  *   npm run scan:due            対象を一覧表示するだけ（実行しない）
  *   npm run scan:due -- --run   対象校の走査と判定まで実行する
  *
- * 自動実行は Vercel Cron から `/api/cron/scan` を1時間ごとに叩く（vercel.json）。
- * このスクリプトはその手動版で、同じ runner を通る。cron を使えない環境では
- * これを crontab に置いてもよい。
+ * 週1回の自動実行はこのスクリプトを .github/workflows/scan.yml から回している。
+ * `/api/cron/scan` も同じ runner を通るが、サーバレスの実行時間の上限に
+ * 収まらないため定期実行には使っていない。
  *
  * 「どの学校をいつ走査するか」の判断は settings.ts の純関数
  * （isScanDue / nextScanAt）に閉じてあり、ここでは入出力だけを扱う。
@@ -15,6 +15,7 @@
 import { loadSettings } from '../src/lib/data/settings-repository';
 import { notifyScanRun, recordScanRun, summarizeRun } from '../src/lib/scan/notify';
 import { loadScanTargets, runDueScans, selectDueSchools } from '../src/lib/scan/runner';
+import { resolveTrigger } from '../src/lib/scan/trigger';
 import { SCAN_FREQUENCY_LABEL } from '../src/lib/settings';
 
 function flag(name: string): boolean {
@@ -32,6 +33,7 @@ function formatJst(date: Date | null): string {
 
 async function main() {
   const now = new Date();
+  const trigger = resolveTrigger(process.argv, process.env);
 
   const groups = await loadScanTargets();
   if (!groups) {
@@ -90,7 +92,7 @@ async function main() {
       );
     }
 
-    await recordScanRun(result, 'manual', group.orgId);
+    await recordScanRun(result, trigger, group.orgId);
     const notified = await notifyScanRun(
       result,
       settings.notify.onFailure ? settings.notify.webhookUrl || null : null,

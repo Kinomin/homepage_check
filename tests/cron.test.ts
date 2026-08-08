@@ -11,6 +11,7 @@ import {
   type ScanRunEntry,
   type ScanRunResult,
 } from '../src/lib/scan/runner';
+import { resolveTrigger } from '../src/lib/scan/trigger';
 import { DEFAULT_SETTINGS, fromJst, type OrgSettings } from '../src/lib/settings';
 import type { School } from '../src/lib/types';
 
@@ -233,4 +234,46 @@ describe('走査の実行', () => {
     expect(run.failures).toHaveLength(2);
     expect(needsAttention(run)).toBe(true);
   }, 30_000);
+});
+
+describe('実行履歴に残す区分（週1回の自動実行が動いているか画面で分かるように）', () => {
+  it('GitHub Actions のスケジュール起動は自動として記録する', () => {
+    expect(resolveTrigger(['node', 'scan-due.ts', '--run'], { GITHUB_EVENT_NAME: 'schedule' })).toBe(
+      'cron',
+    );
+  });
+
+  it('手で起こした実行（workflow_dispatch）は手動として記録する', () => {
+    expect(
+      resolveTrigger(['node', 'scan-due.ts', '--run'], { GITHUB_EVENT_NAME: 'workflow_dispatch' }),
+    ).toBe('manual');
+  });
+
+  it('手元での実行は手動', () => {
+    expect(resolveTrigger(['node', 'scan-due.ts', '--run'], {})).toBe('manual');
+  });
+
+  it('別のスケジューラからは --trigger cron で指定できる', () => {
+    expect(resolveTrigger(['node', 'scan-due.ts', '--run', '--trigger', 'cron'], {})).toBe('cron');
+  });
+
+  it('--trigger は環境変数より優先する', () => {
+    expect(
+      resolveTrigger(['node', 'scan-due.ts', '--trigger', 'manual'], {
+        GITHUB_EVENT_NAME: 'schedule',
+      }),
+    ).toBe('manual');
+  });
+});
+
+describe('改善アクションの導出に失敗した走査', () => {
+  it('走査自体は成功でも要確認として扱う（06 が前回のままになるため）', () => {
+    const run = { ...result([entry()]), actionSyncError: '書き込みに失敗しました' };
+    expect(needsAttention(run)).toBe(true);
+    expect(summarizeRun(run)).toContain('改善アクションを作り直せませんでした');
+  });
+
+  it('導出できていれば通知しない', () => {
+    expect(needsAttention(result([entry()]))).toBe(false);
+  });
 });

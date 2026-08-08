@@ -10,6 +10,7 @@
 
 import { createServiceClient } from '../supabase/server';
 import type { ScanRunEntry, ScanRunResult } from './runner';
+import type { ScanTrigger } from './trigger';
 
 const STATUS_LABEL: Record<ScanRunEntry['status'], string> = {
   done: '完了',
@@ -38,6 +39,12 @@ export function summarizeRun(result: ScanRunResult): string {
     }
   }
 
+  // 改善アクションの導出に失敗すると、走査は成功しているのに 06 が前回のままになる。
+  // 画面が古いことに気づけないので、要確認として必ず書く。
+  if (result.actionSyncError) {
+    lines.push(`・改善アクションを作り直せませんでした：${result.actionSyncError}`);
+  }
+
   return lines.join('\n');
 }
 
@@ -45,6 +52,7 @@ export function summarizeRun(result: ScanRunResult): string {
 export function needsAttention(result: ScanRunResult): boolean {
   return (
     result.failures.length > 0 ||
+    result.actionSyncError !== null ||
     result.entries.some((entry) => entry.status === 'done' && entry.unknownCount > 0)
   );
 }
@@ -56,7 +64,7 @@ export function needsAttention(result: ScanRunResult): boolean {
  */
 export async function recordScanRun(
   result: ScanRunResult,
-  trigger: 'cron' | 'manual',
+  trigger: ScanTrigger,
   orgId: string,
 ): Promise<void> {
   const supabase = createServiceClient();
