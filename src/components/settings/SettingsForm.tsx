@@ -3,7 +3,9 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
+import { StaticDemoNote } from '@/components/shell/StaticDemoNote';
 import type { ScanRunRecord } from '@/lib/data/scan-run-repository';
+import { IS_STATIC_DEMO } from '@/lib/static-demo';
 import {
   DEFAULT_SETTINGS,
   JUDGE_EFFORTS,
@@ -441,7 +443,11 @@ export function SettingsForm({
       <div className="card">
         <div className="card-b">
           <div className="btnrow" style={{ margin: 0, alignItems: 'center' }}>
-            <button className="btn" onClick={save} disabled={saving || !dirty}>
+            <button
+              className="btn"
+              onClick={save}
+              disabled={saving || !dirty || IS_STATIC_DEMO}
+            >
               {saving ? '保存中…' : '設定を保存する'}
             </button>
             <button
@@ -463,12 +469,13 @@ export function SettingsForm({
                 {message.text}
               </span>
             )}
-            {dirty && !message && (
+            {dirty && !message && !IS_STATIC_DEMO && (
               <span className="lb" style={{ marginLeft: 8 }}>
                 未保存の変更があります
               </span>
             )}
           </div>
+          <StaticDemoNote what="設定の値" />
         </div>
       </div>
     </div>

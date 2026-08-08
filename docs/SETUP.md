@@ -28,6 +28,25 @@ npm run doctor
 
 ---
 
+## 置く場所の選び方
+
+| | 置く場所 | できること |
+|---|---|---|
+| 画面を見せたいだけ | GitHub Pages | サンプルデータの表示と操作 |
+| 実際に運用する | Vercel など | ログイン・走査・LLM判定・自動実行 |
+
+GitHub Pages はファイルを配るだけでサーバを持たない。走査（外部サイトへのアクセス）、
+LLM判定、ログイン、データの保存はいずれもサーバが要るため、Pages では動かない。
+
+公開デモを出すには、GitHub の **Settings → Pages → Source** を「GitHub Actions」にして
+`main` に push するだけ。あとは `.github/workflows/pages.yml` が公開する。
+URL は `https://<ユーザー名>.github.io/homepage_check/`。
+
+**この手順書の 1. 以降は「実際に運用する」場合の作業。**
+画面を見せるだけなら、上の公開デモで足りる。
+
+---
+
 ## 0. まず動かしてみる（設定不要）
 
 ```bash

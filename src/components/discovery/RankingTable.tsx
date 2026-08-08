@@ -3,7 +3,9 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
+import { StaticDemoNote } from '@/components/shell/StaticDemoNote';
 import type { RankingRow } from '@/lib/data/ranking-repository';
+import { IS_STATIC_DEMO } from '@/lib/static-demo';
 
 /**
  * SE-01 まだ学校名を知らない層への接点。この画面の主役。
@@ -217,7 +219,11 @@ export function RankingTable({
                 </div>
               </div>
               <div className="btnrow" style={{ margin: '12px 0 0' }}>
-                <button className="btn" onClick={save} disabled={saving || !draft.keyword.trim()}>
+                <button
+                  className="btn"
+                  onClick={save}
+                  disabled={saving || !draft.keyword.trim() || IS_STATIC_DEMO}
+                >
                   {saving ? '記録中…' : '記録する'}
                 </button>
                 <span className="lb">対象：{selfName}</span>
@@ -225,6 +231,7 @@ export function RankingTable({
             </div>
           </div>
         )}
+        <StaticDemoNote what="順位の記録" />
       </div>
     </div>
   );

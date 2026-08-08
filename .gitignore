@@ -43,3 +43,5 @@ next-env.d.ts
 
 # 設定テンプレートは共有する（秘密情報は含めない）
 !.env.example
+.static-demo-stash/
+out/

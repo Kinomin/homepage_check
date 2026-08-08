@@ -77,6 +77,37 @@ npm run dev                  # http://localhost:3000
 設定なしで全画面が動く。その場合は `prototype.html` 由来のサンプルデータが表示され、
 画面上部に「サンプルデータを表示しています」と明示される。
 
+## 公開URL
+
+用途が2つあり、置く場所が違う。
+
+| | URL | できること |
+|---|---|---|
+| **公開デモ** | `https://<user>.github.io/homepage_check/` | 全画面の表示と操作。サンプルデータ |
+| **本体** | Vercel などにデプロイ | ログイン・走査・LLM判定・自動実行 |
+
+GitHub Pages はファイルを配るだけでサーバを持たない。ログイン・サイトの走査・
+LLM判定はサーバが要るので、Pages に置けるのは**サンプルデータの表示まで**。
+本体を動かすには [docs/SETUP.md](docs/SETUP.md) の手順で Supabase を接続する。
+
+### 公開デモの出し方
+
+`main` に push すると `.github/workflows/pages.yml` が公開する。
+初回だけ GitHub の設定が必要（1回のみ）:
+
+**Settings → Pages → Build and deployment → Source を「GitHub Actions」にする**
+
+手元で確認するには:
+
+```bash
+STATIC_DEMO_BASE_PATH=/homepage_check npm run build:demo
+npx http-server out -p 8099   # http://localhost:8099
+```
+
+デモでも動くもの・動かないものは画面上部に明記している。
+対応済みトグル（01 と 06 で共有する状態）はブラウザ内に保存して動かしているが、
+設定の保存と順位の記録は保存先が無いので無効にし、理由を出している。
+
 実際の学校データで動かす手順は **[docs/SETUP.md](docs/SETUP.md)** にまとめてある。
 外部サービスの画面でしか取れないものと、学校ごとに決めるものだけが手作業で、
 残りは次のコマンドに寄せてある。
@@ -95,6 +126,7 @@ npm run doctor      # どこまで設定できているかを点検する
 | `npm run scan -- --url https://example.ed.jp --name 学校名 --role self` | 1校の走査と判定を実行 |
 | `npm run scan:due` | 設定のスケジュールに従い、いま走査すべき学校を一覧表示（`-- --run` で実行） |
 | `POST /api/cron/scan` | 同じ処理の自動実行版。`CRON_SECRET` による Bearer 認証（`vercel.json` の cron が1時間ごとに起動） |
+| `npm run build:demo` | サンプルデータ版を静的書き出し（GitHub Pages 用） |
 | `npm run init:env` | `.env.local` の雛形を作る。`CRON_SECRET` は生成する |
 | `npm run db:migrate` | 未適用のマイグレーションを順に適用し、シードを流す（`-- --dry` で確認のみ） |
 | `npm run doctor` | 設定・接続・マイグレーション・走査実績を点検する |
