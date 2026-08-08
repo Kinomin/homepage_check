@@ -235,9 +235,15 @@ Supabase を設定していないときは認証を使わない。`/signin` は�
 src/lib/types.ts              判定レベル・優先度・出典などの enum（唯一の定義元）
 src/lib/screens.ts            画面名称の唯一の定義元（10章-3 対策）
 src/lib/analysis/criteria.ts  調査項目31件（DB シードもここから生成）
-src/lib/analysis/summary.ts   01・02 の集計ロジック（unknown の除外規則を含む）
-src/lib/analysis/discovery.ts 04 の技術チェック（機械判定のみ。LLM を呼ばない）
-src/lib/settings.ts           走査スケジュール・クロール範囲・判定コストの設定と次回走査日時の算出
+src/lib/analysis/summary.ts       01・02 の集計ロジック（unknown の除外規則を含む）
+src/lib/analysis/discovery.ts     04 の技術チェック（機械判定のみ。LLM を呼ばない）
+src/lib/analysis/derive-actions.ts 06 改善アクションの導出（findings から機械的に。LLM を呼ばない）
+src/lib/analysis/measurements.ts  03 計測値の定義と、走査から出せる値の算出（出せない指標は未計測のまま）
+src/lib/data/gap-rows.ts          02 の行の組み立て（unknown の扱いを画面と自動実行で1箇所にまとめる）
+src/lib/data/action-writer.ts     走査後に改善アクションを作り直す（対応済み状態は鍵で引き継ぐ）
+src/lib/data/reference.ts         調査項目の設計に使った実在6校の記録（本番でも出す参照資料）
+src/lib/scan/trigger.ts           実行記録に残す区分（自動／手動）の判定
+src/lib/settings.ts               走査スケジュール・クロール範囲・判定コストの設定と次回走査日時の算出
 src/lib/crawl/                robots.txt 解釈・HTML 抽出・クロール本体
 src/lib/judge/                候補ページ抽出 → LLM 判定 → 根拠保存
 src/lib/persona/              05 ペルソナ仮説の生成（判定結果の要約を渡し、根拠 criterion_id を必須にする）
