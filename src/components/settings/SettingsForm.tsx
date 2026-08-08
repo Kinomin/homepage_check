@@ -167,6 +167,11 @@ export function SettingsForm({
           <p className="setting-note">
             「手動のみ」を選んだ対象は自動実行から外れ、<code> npm run scan </code>
             での個別実行のみになります。
+            <br />
+            自動実行を起こしているのは <code>.github/workflows/scan.yml</code> で、
+            <b>週1回（月曜 6時）</b>に動きます。ここで曜日・時刻を変えた場合は、
+            そのファイルの <code>cron</code> も合わせてください。週1回しか起きないため、
+            合っていないと次の週まで走査されません。
           </p>
         </div>
       </div>

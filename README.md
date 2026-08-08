@@ -91,9 +91,12 @@ npm run dev                  # http://localhost:3000
 - **デプロイのたびにマイグレーションが自動で当たる**（`vercel.json` の Build Command が
   `scripts/vercel-build.ts` を指している）。Production デプロイのときだけ流し、
   プレビュー環境のビルドは本番のデータベースに触らない
-- **走査は `.github/workflows/scan.yml`** が毎日 6:00（日本時間）に起動する。
-  Vercel の関数で回さないのは、31項目 × 校数のLLM判定とクロールが
-  関数の実行時間上限（Pro でも 800 秒）を超えるため
+- **走査は `.github/workflows/scan.yml`** が週1回（月曜 6:00 JST）に起動する。
+  設定画面の既定（自校 週次・月曜・6時）に合わせてある。Vercel の関数で回さないのは、
+  31項目 × 校数のLLM判定とクロールが関数の実行時間上限（Pro でも 800 秒）を超えるため
+- **`.github/workflows/keepalive.yml`** が3日ごとにデータベースを読む。
+  Supabase の無料プランは7日間アクセスが無いと一時停止し、走査の週1回では
+  間隔が並ぶため。有料プランなら不要
 
 手順は **[docs/SETUP.md](docs/SETUP.md)** の 7. にまとめてある。1回で終わる。
 
@@ -139,6 +142,7 @@ npm run doctor      # どこまで設定できているかを点検する
 | `POST /api/cron/scan` | 同じ処理を外部の cron から叩く口。`CRON_SECRET` による Bearer 認証。定期実行は GitHub Actions に置いている（サーバレスの実行時間上限を避けるため） |
 | `npm run build:demo` | サンプルデータ版を静的書き出し（GitHub Pages 用） |
 | `npm run vercel-build` | 本番ビルド。マイグレーション適用 → `next build`（Vercel が呼ぶ） |
+| `npm run keepalive` | データベースへの死活アクセス（Supabase の一時停止対策） |
 | `npm run init:env` | `.env.local` の雛形を作る。`CRON_SECRET` は生成する |
 | `npm run db:migrate` | 未適用のマイグレーションを順に適用し、シードを流す（`-- --dry` で確認のみ） |
 | `npm run doctor` | 設定・接続・マイグレーション・走査実績を点検する |
@@ -288,7 +292,7 @@ PDF をサーバ側で生成していないのは、ヘッドレスブラウザ�
 
 ## 自動実行
 
-定期実行は `.github/workflows/scan.yml`（GitHub Actions）が毎日 6:00（日本時間）に
+定期実行は `.github/workflows/scan.yml`（GitHub Actions）が週1回、月曜 6:00（日本時間）に
 `npm run scan:due -- --run` を回す。外部から叩く口として `/api/cron/scan` も用意してあり、
 CLI・cron・Actions のいずれも同じ `src/lib/scan/runner.ts` を通る。
 判断も実行も1箇所に置き、経路によって挙動が違う状態を作らない。
