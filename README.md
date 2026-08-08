@@ -59,7 +59,16 @@
 
 ## デザインの引き継ぎ
 
-`prototype.html` の配色・余白・罫線の太さ・数値の等幅表記をそのままデザインシステムの基準にする。見出しは Shippori Mincho、本文は Zen Kaku Gothic New、数値は IBM Plex Mono。淡色ベースで、分析ツールらしい密度を保つ（詳細は `handoff.md` 末尾）。
+`prototype.html` の余白・罫線の太さ・数値の等幅表記をデザインシステムの基準にしている。
+見出しは Shippori Mincho、本文は Zen Kaku Gothic New、数値は IBM Plex Mono。
+
+配色は実装時に**紙の色（象牙・生成り）へ寄せた**。学校に出す資料として読まれるものなので、
+青灰のダッシュボードらしさより、書類としての落ち着きを取っている。彩度は上げず、
+グラデーション・強い影・原色は使わない。
+
+**文字色はすべて、載る背景に対して 4.5:1 以上**（WCAG AA・通常サイズ）を確保している。
+9.5〜11px の小さいラベルが多いため、大きい字向けの 3:1 では足りない。
+配色を変えたら `npm run check:contrast` で検算すること（CI でも通している）。
 
 ---
 
@@ -94,6 +103,12 @@ npm run dev                  # http://localhost:3000
 - **走査は `.github/workflows/scan.yml`** が週1回（月曜 6:00 JST）に起動する。
   設定画面の既定（自校 週次・月曜・6時）に合わせてある。Vercel の関数で回さないのは、
   31項目 × 校数のLLM判定とクロールが関数の実行時間上限（Pro でも 800 秒）を超えるため
+- **失敗した学校は水曜・金曜に拾い直す。** 走査の間隔は週1回のまま。
+  前回走査として数えるのは走り切った回だけなので（`status='done'` で絞っている）、
+  失敗した学校は次に起きたときも対象に残り、成功した学校は次の月曜まで対象にならない。
+  全部成功していれば拾い直しの回は0校で終わる
+- **作業中のブランチにもURLが出る。** Vercel はブランチごとにプレビューURLを作るので、
+  開発でもローカルを立ち上げる必要はない（`docs/SETUP.md` の「開発用のURL」）
 - **`.github/workflows/keepalive.yml`** が3日ごとにデータベースを読む。
   Supabase の無料プランは7日間アクセスが無いと一時停止し、走査の週1回では
   間隔が並ぶため。有料プランなら不要
@@ -143,6 +158,7 @@ npm run doctor      # どこまで設定できているかを点検する
 | `npm run build:demo` | サンプルデータ版を静的書き出し（GitHub Pages 用） |
 | `npm run vercel-build` | 本番ビルド。マイグレーション適用 → `next build`（Vercel が呼ぶ） |
 | `npm run keepalive` | データベースへの死活アクセス（Supabase の一時停止対策） |
+| `npm run check:contrast` | 文字色のコントラスト比を検算（WCAG AA・4.5:1） |
 | `npm run init:env` | `.env.local` の雛形を作る。`CRON_SECRET` は生成する |
 | `npm run db:migrate` | 未適用のマイグレーションを順に適用し、シードを流す（`-- --dry` で確認のみ） |
 | `npm run doctor` | 設定・接続・マイグレーション・走査実績を点検する |

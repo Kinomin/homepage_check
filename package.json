@@ -18,7 +18,8 @@
     "doctor": "tsx --env-file-if-exists=.env.local scripts/doctor.ts",
     "build:demo": "tsx scripts/build-static-demo.ts",
     "vercel-build": "tsx scripts/vercel-build.ts",
-    "keepalive": "tsx --env-file-if-exists=.env.local scripts/keepalive.ts"
+    "keepalive": "tsx --env-file-if-exists=.env.local scripts/keepalive.ts",
+    "check:contrast": "tsx scripts/check-contrast.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

@@ -36,6 +36,8 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
+      # 配色を変えたときに、小さいラベルが読めない状態で公開されないようにする
+      - run: npm run check:contrast
 
       - uses: actions/configure-pages@v5
         id: pages

@@ -36,7 +36,15 @@ function skipReason(): string | null {
   // Vercel 以外（自前のサーバなど）では未設定なので、その場合は流す。
   const vercelEnv = process.env.VERCEL_ENV;
   if (vercelEnv && vercelEnv !== 'production') {
-    return `${vercelEnv} デプロイのため本番のデータベースには触りません`;
+    // 開発用に別の Supabase を用意している場合は、プレビューでも流したい。
+    // ALLOW_PREVIEW_MIGRATE=1 を Preview 環境にだけ設定して使う。
+    // 本番と同じ DATABASE_URL のまま有効にしてはいけない（作業中のブランチが
+    // 本番のスキーマを変えてしまう）。
+    if (process.env.ALLOW_PREVIEW_MIGRATE === '1') return null;
+    return (
+      `${vercelEnv} デプロイのため本番のデータベースには触りません` +
+      '（開発用DBを分けている場合は ALLOW_PREVIEW_MIGRATE=1）'
+    );
   }
   return null;
 }

@@ -67,6 +67,25 @@ describe('走査対象の判定', () => {
     expect(rival?.nextScanAt).toBeNull();
   });
 
+  it('失敗した学校は次に起きたときも対象のまま（週の途中で拾い直せる）', () => {
+    // 失敗した走査は保存されない（runner の scanOne が status!=='done' で保存しない）ため、
+    // 前回走査として渡されるのは「走り切った回」だけになる。
+    // その結果、月曜に失敗した学校は水曜・金曜の拾い直しでも対象に残る。
+    const lastSuccess = fromJst(2026, 8, 3, 6); // 8/3(月) は成功
+    const failedOnMonday = new Map<string, Date>([['self', lastSuccess]]);
+    // rival は 8/10(月) に失敗 → 記録が無いので前回は 8/3 のまま
+    failedOnMonday.set('rival', lastSuccess);
+
+    // 8/12(水) の拾い直し
+    const wednesday = selectDueSchools(schools, failedOnMonday, settings, fromJst(2026, 8, 12, 6));
+    expect(wednesday.find((e) => e.school.id === 'self')?.due).toBe(true);
+
+    // 8/10(月) に成功していれば、同じ水曜では対象にならない
+    const succeeded = new Map<string, Date>([['self', fromJst(2026, 8, 10, 6)]]);
+    const after = selectDueSchools(schools, succeeded, settings, fromJst(2026, 8, 12, 6));
+    expect(after.find((e) => e.school.id === 'self')?.due).toBe(false);
+  });
+
   it('対象外の学校も次回予定を添えて返す（なぜ対象外かが分かるように）', () => {
     const last = new Map([['self', fromJst(2026, 8, 3, 6)]]);
     const due = selectDueSchools(schools, last, settings, fromJst(2026, 8, 5, 9));
