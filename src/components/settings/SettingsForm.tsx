@@ -112,7 +112,7 @@ export function SettingsForm({
           <div className="grid2">
             <FrequencyField
               label="自校の走査頻度"
-              note="更新の速い自校は週次を推奨"
+              note="更新が速い時期だけ週次に上げるのがおすすめ"
               value={settings.schedule.selfFrequency}
               nextRun={nextSelf}
               onChange={(selfFrequency) =>
@@ -172,9 +172,10 @@ export function SettingsForm({
             での個別実行のみになります。
             <br />
             自動実行を起こしているのは <code>.github/workflows/scan.yml</code> で、
-            <b>週1回（月曜 6時）</b>に動きます。ここで曜日・時刻を変えた場合は、
-            そのファイルの <code>cron</code> も合わせてください。週1回しか起きないため、
-            合っていないと次の週まで走査されません。
+            <b>週1回（月曜 6時）＋失敗時の拾い直し（水・金）</b>に様子を見に来ます。
+            ここで決めた曜日・時刻とその確認タイミングがずれても、次に来たときに
+            拾われるので合わせる必要はありません。ただし確認は週1回なので、
+            スケジュールに達してから実際に走査されるまで最大で数日ずれます。
           </p>
         </div>
       </div>

@@ -3,7 +3,8 @@
  *
  * handoff.md 9章A は「比較校は月次、自校は週次、という頻度差を付けるか」を
  * 要確定事項として残している。ここでコードに固定せず、設定として変更できるようにする。
- * 既定値は handoff.md の推奨（自校 週次／比較校 月次、深度4、比較校は判定に必要な範囲のみ）。
+ * 既定値は自校・比較校ともに月次（深度4、比較校は判定に必要な範囲のみ）。
+ * 判定コストを抑えるための運用判断で、頻度を上げたい場合は設定画面から変更できる。
  *
  * 次回走査日時の算出は純関数にしてある（副作用なし・テストで固定）。
  * 走査時刻はすべて日本時間（Asia/Tokyo）で解釈する。日本の学校向けであり、
@@ -98,7 +99,7 @@ export interface OrgSettings {
 /** 初期設定。handoff.md の推奨をそのまま既定値にしている。 */
 export const DEFAULT_SETTINGS: OrgSettings = {
   schedule: {
-    selfFrequency: 'weekly',
+    selfFrequency: 'monthly',
     competitorFrequency: 'monthly',
     dayOfWeek: 1, // 月曜
     dayOfMonth: 1,
