@@ -16,7 +16,7 @@ function row(criterionId: string, levels: Level[]): GapRow {
   return { criterion: CRITERIA_BY_ID[criterionId], levels };
 }
 
-const action: Action = { ...DEMO_ACTIONS[0], sourceCriterionId: 'E1' };
+const action: Action = { ...DEMO_ACTIONS[0], ref: 'E1', sourceCriterionId: 'E1' };
 
 describe('照会の根拠', () => {
   const rows = [row('E1', ['thin', 'full', 'mid', 'none', 'unknown'])];

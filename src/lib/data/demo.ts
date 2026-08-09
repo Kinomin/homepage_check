@@ -542,7 +542,9 @@ export const DEMO_MEASUREMENTS: Measurement[] = [
     }
   ];
 
-export const DEMO_ACTIONS: Action[] = [
+// ref（画面に出す短い参照）は loadDemoDashboard で補う。
+// デモデータ側は素の定義を持ち、表示用の値は持たない。
+export const DEMO_ACTIONS: Omit<Action, 'ref'>[] = [
     {
       "id": "AC-01",
       "title": "説明会ページに申込ボタンを置く",

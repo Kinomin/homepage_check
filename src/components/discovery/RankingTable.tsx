@@ -61,9 +61,24 @@ export function RankingTable({
       </div>
       <div className="card-b">
         {rankings.length === 0 ? (
-          <p style={{ fontSize: 12.5, lineHeight: 1.9, color: 'var(--ink-2)' }}>
-            順位の記録がありません。外部の順位計測 API を接続するか、下の「順位を記録する」から手動で記録してください。
-          </p>
+          /* 何を記録すればよいかまで書く。「記録がありません」だけでは手が動かない。 */
+          <div style={{ fontSize: 12.5, lineHeight: 1.95, color: 'var(--ink-2)' }}>
+            <p>
+              まだ記録がありません。ここに入れるのは
+              <strong>学校名を含まない検索語</strong>です。学校名で検索する家庭はすでに本校を知っているので、
+              この画面の問い（まだ知らない家庭に届いているか）には答えられません。
+            </p>
+            <p style={{ marginTop: 8 }}>記録する検索語の例：</p>
+            <ul style={{ margin: '5px 0 0', paddingLeft: '1.15em' }}>
+              <li>市区町村名 + 私立中学（例：○○市 私立中学）</li>
+              <li>沿線名 + 中高一貫</li>
+              <li>市区町村名 + 中学 説明会</li>
+            </ul>
+            <p style={{ marginTop: 8 }}>
+              順位はブラウザのシークレットウィンドウで実際に検索して数えるのが確実です
+              （ログイン状態や履歴で順位が変わるため）。下の「順位を記録する」から入力してください。
+            </p>
+          </div>
         ) : (
           <table className="dt">
             <thead>

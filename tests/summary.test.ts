@@ -144,6 +144,7 @@ function action(
 ): Action {
   return {
     id,
+    ref: id,
     title: id,
     summary: '',
     priority,
