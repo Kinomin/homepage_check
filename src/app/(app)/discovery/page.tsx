@@ -1,20 +1,21 @@
 import { DiscoveryChecks } from '@/components/discovery/DiscoveryChecks';
-import { RankingTable } from '@/components/discovery/RankingTable';
 import { DemoNote } from '@/components/shell/DemoNote';
 import { Topbar } from '@/components/shell/Topbar';
 import { CRITERIA } from '@/lib/analysis/criteria';
 import { analyzeDiscovery, findNamingGaps } from '@/lib/analysis/discovery';
-import { loadRankings } from '@/lib/data/ranking-repository';
-import { canManage, getCurrentSession, isAuthEnabled } from '@/lib/auth/session';
 import { loadDashboard } from '@/lib/data/repository';
 import { SCREENS } from '@/lib/screens';
 
+/**
+ * SE-01（検索順位）は画面に出さない。
+ * 記録機能・API（/api/rankings）・DB（rankings テーブル）は残してある。
+ * 順位計測 API の選定後に再度出す可能性があるため（handoff.md 9章D）。
+ */
 export default async function DiscoveryPage() {
   const { schools, scan, selfPages, isDemo } = await loadDashboard();
   const selfName = schools[0]?.name ?? '';
   const discovery = analyzeDiscovery({ pages: selfPages, schoolName: selfName });
   const namingGaps = findNamingGaps(selfPages, CRITERIA);
-  const rankings = await loadRankings(schools);
 
   return (
     <>
@@ -30,14 +31,6 @@ export default async function DiscoveryPage() {
         {/* 前は冒頭に説明文を置いていたが、読まれず伝わらなかった。
             各カードの見出し自体で内容が分かる形にし、説明文は置かない。 */}
         <div className="stack">
-          {/* SE-01 */}
-          <RankingTable
-            rankings={rankings}
-            selfName={selfName}
-            competitorNames={schools.slice(1).map((s) => s.name)}
-            canManage={canManage(isAuthEnabled() ? await getCurrentSession() : null)}
-          />
-
           {/* SE-03 検索語とページ名の食い違い */}
           <div className="card">
             <div className="card-h">

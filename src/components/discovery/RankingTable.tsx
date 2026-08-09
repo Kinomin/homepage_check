@@ -8,7 +8,11 @@ import type { RankingRow } from '@/lib/data/ranking-repository';
 import { IS_STATIC_DEMO } from '@/lib/static-demo';
 
 /**
- * SE-01 検索順位。この画面の主役。
+ * SE-01 検索順位。
+ *
+ * 現在どの画面からも呼んでいない（04 から表示を外した）。
+ * 記録機能・保存API（/api/rankings）・DB（rankings テーブル）は残っている。
+ * 順位計測 API の選定が済み、再び画面に出すことになったときにそのまま使う。
  *
  * 順位の取得には外部の順位計測 API が必要で、学校数 × キーワード数 × 頻度で
  * 課金される（handoff.md 9章D）。API の選定が済むまでは手動記録で受ける。
