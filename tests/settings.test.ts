@@ -91,11 +91,11 @@ describe('走査すべきかの判定（cron から使う）', () => {
 });
 
 describe('判定コストの見積もり（handoff.md 9章A）', () => {
-  it('既定値（自校 週次／比較校 月次・4校）では月 248 判定', () => {
+  it('既定値（自校・比較校とも月次・4校）では月 155 判定', () => {
     const estimate = estimateMonthlyJudgements(DEFAULT_SETTINGS, 4, 31);
-    expect(estimate.selfPerMonth).toBe(31 * 4);
+    expect(estimate.selfPerMonth).toBe(31 * 1);
     expect(estimate.competitorsPerMonth).toBe(31 * 4 * 1);
-    expect(estimate.totalPerMonth).toBe(248);
+    expect(estimate.totalPerMonth).toBe(155);
   });
 
   it('比較校も週次にすると判定数が跳ね上がる', () => {
@@ -103,7 +103,7 @@ describe('判定コストの見積もり（handoff.md 9章A）', () => {
       ...DEFAULT_SETTINGS,
       schedule: { ...DEFAULT_SETTINGS.schedule, competitorFrequency: 'weekly' },
     };
-    expect(estimateMonthlyJudgements(weekly, 4, 31).totalPerMonth).toBe(31 * 4 + 31 * 4 * 4);
+    expect(estimateMonthlyJudgements(weekly, 4, 31).totalPerMonth).toBe(31 * 1 + 31 * 4 * 4);
   });
 
   it('手動のみは自動実行ぶんの判定が発生しない', () => {

@@ -34,8 +34,14 @@ function school(id: string, role: School['role']): School {
 
 const schools = [school('self', 'self'), school('rival', 'competitor')];
 
-/** 既定：自校 週次／比較校 月次、月曜6時（日本時間） */
+/** 既定：自校・比較校とも月次、1日6時（日本時間） */
 const settings: OrgSettings = DEFAULT_SETTINGS;
+
+/** 自校だけ週次にした設定。週次特有の挙動（週単位の拾い直しなど）を確かめるテストで使う。 */
+const selfWeekly: OrgSettings = {
+  ...DEFAULT_SETTINGS,
+  schedule: { ...DEFAULT_SETTINGS.schedule, selfFrequency: 'weekly' },
+};
 
 describe('走査対象の判定', () => {
   it('一度も走査していない学校は対象になる', () => {
@@ -50,7 +56,7 @@ describe('走査対象の判定', () => {
       ['self', fromJst(2026, 8, 3, 6)],
       ['rival', fromJst(2026, 8, 3, 6)],
     ]);
-    const due = selectDueSchools(schools, last, settings, fromJst(2026, 8, 10, 9));
+    const due = selectDueSchools(schools, last, selfWeekly, fromJst(2026, 8, 10, 9));
 
     // 自校は週次なので対象、比較校は月次（1日）なのでまだ対象外
     expect(due.find((entry) => entry.school.id === 'self')?.due).toBe(true);
@@ -60,7 +66,7 @@ describe('走査対象の判定', () => {
   it('組織ごとに別の設定を適用できる（設定を混ぜない）', () => {
     // 走査はサービスキーで動き RLS が効かないため、組織の分離はコード側で保つ。
     // A学園は自校週次、B学園は手動のみ、という状態を取り違えないこと。
-    const weekly = settings;
+    const weekly = selfWeekly;
     const manual: OrgSettings = {
       ...settings,
       schedule: { ...settings.schedule, selfFrequency: 'manual' },
@@ -89,24 +95,25 @@ describe('走査対象の判定', () => {
     // 失敗した走査は保存されない（runner の scanOne が status!=='done' で保存しない）ため、
     // 前回走査として渡されるのは「走り切った回」だけになる。
     // その結果、月曜に失敗した学校は水曜・金曜の拾い直しでも対象に残る。
+    // （週次の場合の挙動を確認するテストなので selfWeekly を使う）
     const lastSuccess = fromJst(2026, 8, 3, 6); // 8/3(月) は成功
     const failedOnMonday = new Map<string, Date>([['self', lastSuccess]]);
     // rival は 8/10(月) に失敗 → 記録が無いので前回は 8/3 のまま
     failedOnMonday.set('rival', lastSuccess);
 
     // 8/12(水) の拾い直し
-    const wednesday = selectDueSchools(schools, failedOnMonday, settings, fromJst(2026, 8, 12, 6));
+    const wednesday = selectDueSchools(schools, failedOnMonday, selfWeekly, fromJst(2026, 8, 12, 6));
     expect(wednesday.find((e) => e.school.id === 'self')?.due).toBe(true);
 
     // 8/10(月) に成功していれば、同じ水曜では対象にならない
     const succeeded = new Map<string, Date>([['self', fromJst(2026, 8, 10, 6)]]);
-    const after = selectDueSchools(schools, succeeded, settings, fromJst(2026, 8, 12, 6));
+    const after = selectDueSchools(schools, succeeded, selfWeekly, fromJst(2026, 8, 12, 6));
     expect(after.find((e) => e.school.id === 'self')?.due).toBe(false);
   });
 
   it('対象外の学校も次回予定を添えて返す（なぜ対象外かが分かるように）', () => {
     const last = new Map([['self', fromJst(2026, 8, 3, 6)]]);
-    const due = selectDueSchools(schools, last, settings, fromJst(2026, 8, 5, 9));
+    const due = selectDueSchools(schools, last, selfWeekly, fromJst(2026, 8, 5, 9));
     const self = due.find((entry) => entry.school.id === 'self');
     expect(self?.due).toBe(false);
     expect(self?.nextScanAt).toEqual(fromJst(2026, 8, 10, 6));
