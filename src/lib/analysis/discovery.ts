@@ -40,10 +40,6 @@ export const CHECK_STATUS_MARK: Record<CheckStatus, string> = {
   unknown: '—',
 };
 
-/** 誰が直せるか。ここが分からないと点検結果を渡す先が決まらない。 */
-export const FIX_OWNERS = ['広報部', '制作会社'] as const;
-export type FixOwner = (typeof FIX_OWNERS)[number];
-
 export interface DiscoveryCheck {
   key: string;
   label: string;
@@ -54,16 +50,7 @@ export interface DiscoveryCheck {
   /** 直すと何が起きるか */
   effect: string;
   status: CheckStatus;
-  /**
-   * 誰が直せるか。
-   *
-   * 以前はここに改善アクションのID（AC-04 など）を入れていたが、
-   * それはプロトタイプのデモ用アクションの番号で、実データでは存在しない。
-   * 画面には解決しない参照だけが並んでいた。
-   * 点検結果を渡す先が分かることのほうが実務では役に立つ。
-   */
-  fixedBy: FixOwner;
-  /** 「先に直す5つ」に入れるか */
+  /** 「先に直す」項目に入れるか */
   priority: boolean;
 }
 
@@ -160,7 +147,6 @@ export function analyzeDiscovery({ pages, schoolName }: DiscoveryInput): Discove
             : briefingWithEvent.length < briefingPages.length
               ? 'warn'
               : 'ok',
-      fixedBy: '制作会社',
       priority: briefingPages.length > 0 && briefingWithEvent.length < briefingPages.length,
     },
     {
@@ -179,7 +165,6 @@ export function analyzeDiscovery({ pages, schoolName }: DiscoveryInput): Discove
             ? 'ng'
             : 'warn',
       // 見出しと説明文は本文の書き換えなので、多くの場合は広報部で直せる
-      fixedBy: '広報部',
       priority: genericTitlePages.length > 0 || missingDescriptionPages.length > 0,
     },
     {
@@ -192,7 +177,6 @@ export function analyzeDiscovery({ pages, schoolName }: DiscoveryInput): Discove
           : 'PDFに頼らずページ内で読めます',
       effect: '検索に出るようになり、スマートフォンでもそのまま読める',
       status: pdfPages.length === 0 ? 'ok' : pdfPages.length > 5 ? 'ng' : 'warn',
-      fixedBy: '広報部',
       priority: pdfPages.length > 0,
     },
     {
@@ -207,7 +191,6 @@ export function analyzeDiscovery({ pages, schoolName }: DiscoveryInput): Discove
           ? '毎年ページを作り直すことになり、前年まで検索で積み上げた評価が引き継がれません'
           : '同じURLを使い続けられています',
       effect: '毎年URLを変えずに済み、前年までの検索での評価がそのまま続く',
-      fixedBy: '制作会社',
       status: yearInPathBriefing.length > 0 ? 'ng' : 'ok',
       priority: yearInPathBriefing.length > 0,
     },
@@ -231,7 +214,6 @@ export function analyzeDiscovery({ pages, schoolName }: DiscoveryInput): Discove
             : imagesWithoutAlt > totalImages / 2
               ? 'ng'
               : 'warn',
-      fixedBy: '広報部',
       priority: imagesWithoutAlt > 0,
     },
     {
@@ -243,7 +225,6 @@ export function analyzeDiscovery({ pages, schoolName }: DiscoveryInput): Discove
         : '所在地・電話・設立年を検索エンジンが読み取れていません',
       effect: '学校名で検索したときの枠に、所在地や連絡先が表示される',
       status: hasOrganizationSchema ? 'ok' : 'ng',
-      fixedBy: '制作会社',
       priority: false,
     },
     {
@@ -261,7 +242,6 @@ export function analyzeDiscovery({ pages, schoolName }: DiscoveryInput): Discove
           : noH1Pages.length > htmlPages.length / 4
             ? 'ng'
             : 'warn',
-      fixedBy: '制作会社',
       priority: false,
     },
   ];

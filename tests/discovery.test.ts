@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import { CRITERIA } from '../src/lib/analysis/criteria';
 import {
-  FIX_OWNERS,
   analyzeDiscovery,
   findNamingGaps,
   hasGenericTitle,
@@ -64,9 +63,6 @@ describe('SE-04 設定状況の点検', () => {
     });
     const check = summary.checks.find((c) => c.key === 'briefing-event-schema');
     expect(check?.status).toBe('ng');
-    // 直せるのが誰かを出す。以前はデモ用アクションの番号（AC-04）を入れていたが、
-    // 実データには存在しないため、画面に解決しない参照が並んでいた。
-    expect(check?.fixedBy).toBe('制作会社');
     expect(check?.reader).toContain('検索');
   });
 
@@ -143,17 +139,6 @@ describe('SE-03 ページ名称と検索語のズレ', () => {
 });
 
 describe('点検結果の表示内容', () => {
-  it('すべての点検に「誰が直せるか」が入っている（渡す先が決まる）', () => {
-    const summary = analyzeDiscovery({
-      pages: [page({ url: 'https://example.ed.jp/admission/briefing', title: '学校説明会' })],
-      schoolName: 'テスト校',
-    });
-    expect(summary.checks.length).toBeGreaterThan(0);
-    for (const check of summary.checks) {
-      expect(FIX_OWNERS).toContain(check.fixedBy);
-    }
-  });
-
   it('見出しに用語を出さず、家庭から見た状態を書く', () => {
     const summary = analyzeDiscovery({
       pages: [page({ url: 'https://example.ed.jp/admission/briefing', title: '学校説明会' })],

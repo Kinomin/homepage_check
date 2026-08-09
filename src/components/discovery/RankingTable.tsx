@@ -8,7 +8,7 @@ import type { RankingRow } from '@/lib/data/ranking-repository';
 import { IS_STATIC_DEMO } from '@/lib/static-demo';
 
 /**
- * SE-01 まだ学校名を知らない層への接点。この画面の主役。
+ * SE-01 検索順位。この画面の主役。
  *
  * 順位の取得には外部の順位計測 API が必要で、学校数 × キーワード数 × 頻度で
  * 課金される（handoff.md 9章D）。API の選定が済むまでは手動記録で受ける。
@@ -55,9 +55,9 @@ export function RankingTable({
     <div className="card">
       <div className="card-h">
         <h2>
-          <span className="id">SE-01</span>まだ学校名を知らない層への接点
+          <span className="id">SE-01</span>検索順位
         </h2>
-        <span className="note">まず結果：地域名で探している家庭に、どの学校が届いているか</span>
+        <span className="note">学校名を含まない検索語での順位（手で記録した値）</span>
       </div>
       <div className="card-b">
         {rankings.length === 0 ? (
@@ -112,19 +112,13 @@ export function RankingTable({
 
         {rankings.length > 0 && (
           <div className="evidence" style={{ marginTop: 14 }}>
-            <div className="ttl">この画面だけが答えている問い</div>
-            <p>
-              欠落マップと導線の実測は、<strong>すでに本校のサイトに来た人</strong>
-              の話です。この画面は、<strong>まだ本校を知らない人に届いているか</strong>を見ています。
-              {outOfRange > 0 && (
-                <>
-                  <br />
-                  記録した{rankings.length}語のうち{outOfRange}
-                  語で本校は圏外です。上位の多くは受験情報サイトと塾ポータルで、そこを学校が取り切ることはできませんが、
-                  <strong>比較校は取れていて本校は取れていない</strong>という差は埋められます。
-                </>
-              )}
-            </p>
+            {outOfRange > 0 && (
+              <p>
+                記録した{rankings.length}語のうち{outOfRange}語で本校は圏外です。
+                上位の多くは受験情報サイトと塾ポータルで学校が取り切れる順位ではありませんが、
+                <strong>比較校は取れていて本校は取れていない</strong>という差は埋められます。
+              </p>
+            )}
             <div className="src">
               測定方法：外部測定（順位は測定地点・端末により変動します）
               {rankings[0]?.measuredAt ? ` ／ 記録日 ${rankings[0].measuredAt}` : ''}
