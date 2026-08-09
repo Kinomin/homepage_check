@@ -45,13 +45,16 @@ export default async function DiscoveryPage() {
           </p>
           <ol className="lead-steps">
             <li>
-              <b>SE-01</b> 地域名や条件で検索したとき、本校が何位に出るか（記録が必要）
+              <b>SE-01</b> <strong>まず結果を見る</strong>
+              ——地域名や条件で検索したとき、本校が何位に出ているか（順位の記録が必要）
             </li>
             <li>
-              <b>SE-03</b> 校内の呼び方でページ名を付けていて、検索語と食い違っていないか
+              <b>SE-03</b> <strong>届かない原因①</strong>
+              ——家庭が検索する言葉と、ページ名が食い違っていないか
             </li>
             <li>
-              <b>SE-04</b> 検索結果に正しく情報が出る設定になっているか
+              <b>SE-04</b> <strong>届かない原因②</strong>
+              ——検索結果での見え方の設定が足りているか
             </li>
           </ol>
         </div>
@@ -65,28 +68,34 @@ export default async function DiscoveryPage() {
             canManage={canManage(isAuthEnabled() ? await getCurrentSession() : null)}
           />
 
-          {/* SE-03 名称のズレ */}
+          {/* SE-03 届いていない原因① 検索語とページ名の食い違い */}
           <div className="card">
             <div className="card-h">
               <h2>
-                <span className="id">SE-03</span>ページ名称と検索語のズレ
+                <span className="id">SE-03</span>探している言葉でページ名が付いているか
               </h2>
-              <span className="note">校内の呼称のままページ名にしている箇所</span>
+              <span className="note">届かない原因①：検索する言葉と、ページ名の食い違い</span>
             </div>
             <div className="card-b">
+              <p style={{ fontSize: 12.5, lineHeight: 1.95, color: 'var(--ink-2)', marginBottom: 13 }}>
+                家庭は<strong>自分が知っている言葉で検索します。</strong>
+                校内で使っている呼び方でページ名を付けていると、内容は載っているのに検索では出てきません。
+                校内の正式名称を変える必要はありません。
+                <strong>ページ名に一般的な言葉を併記するだけで解決します。</strong>
+              </p>
               {namingGaps.length === 0 ? (
                 <p style={{ fontSize: 12.5, lineHeight: 1.9, color: 'var(--ink-2)' }}>
                   {selfPages.length === 0
                     ? '走査結果がないため判定していません。'
-                    : '校内の呼称だけでページ名を付けている箇所は見つかりませんでした。'}
+                    : '校内の呼び方だけでページ名を付けている箇所は見つかりませんでした。'}
                 </p>
               ) : (
                 <table className="dt">
                   <thead>
                     <tr>
-                      <th>本校のページ名</th>
-                      <th>実際に検索されている語</th>
-                      <th>該当ページ</th>
+                      <th>いまのページ名</th>
+                      <th>家庭が検索する言葉</th>
+                      <th>ページ名の案</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -97,22 +106,20 @@ export default async function DiscoveryPage() {
                           <span className="sub2">{gap.pageTitle}</span>
                         </td>
                         <td>{gap.searchedName}</td>
-                        <td style={{ fontFamily: 'var(--mono)', fontSize: 10.5 }}>{gap.url}</td>
+                        <td>
+                          {/* 併記の形をそのまま出す。言い換えではなく足すだけ、が伝わるように */}
+                          <b>
+                            {gap.searchedName}（{gap.usedName}）
+                          </b>
+                          <span className="sub2" style={{ fontFamily: 'var(--mono)', fontSize: 10.5 }}>
+                            {gap.url}
+                          </span>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               )}
-              <div className="evidence" style={{ marginTop: 14 }}>
-                <div className="ttl">
-                  {SCREENS.gap.title}と同じ問題が、順位として現れる箇所です
-                </div>
-                <p>
-                  {SCREENS.gap.title}では「名称が違っても内容で判定する」としています。
-                  <strong>検索エンジンは、そこまで汲み取ってくれません。</strong>
-                  校内の正式名称を変える必要はなく、見出しに「学費（学納金）」のように併記するだけで解決します。
-                </p>
-              </div>
             </div>
           </div>
 
