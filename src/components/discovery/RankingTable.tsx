@@ -57,7 +57,7 @@ export function RankingTable({
         <h2>
           <span className="id">SE-01</span>まだ学校名を知らない層への接点
         </h2>
-        <span className="note">地域名で探している家庭に、どの学校が届いているか</span>
+        <span className="note">まず結果：地域名で探している家庭に、どの学校が届いているか</span>
       </div>
       <div className="card-b">
         {rankings.length === 0 ? (

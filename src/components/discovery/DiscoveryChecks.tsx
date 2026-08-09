@@ -21,10 +21,11 @@ export function DiscoveryChecks({
     <div className="card">
       <div className="card-h">
         <h2>
-          <span className="id">SE-04</span>検索から見つけてもらう設定
+          <span className="id">SE-04</span>検索結果での見え方の設定
         </h2>
         <span className="note">
-          {hasScanResult ? `全${summary.pageCount}ページを走査` : '走査結果がありません'}
+          届かない原因②：設定の不足
+          {hasScanResult ? `（全${summary.pageCount}ページを走査）` : '（走査結果がありません）'}
         </span>
       </div>
       <div className="card-b">
