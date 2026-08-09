@@ -103,8 +103,11 @@ export function loadDemoDashboard(): Dashboard {
     ),
   }));
 
-  const actions = DEMO_ACTIONS.map((action) => ({
+  const actions: Action[] = DEMO_ACTIONS.map((action) => ({
     ...action,
+    // 調査項目に紐づくものはそのIDを出す。紐づかないもの（03 由来など）は
+    // デモの通し番号をそのまま使う。
+    ref: action.sourceCriterionId ?? action.id,
     status: demoActionStatus.get(action.id) ?? action.status,
   }));
 
@@ -190,13 +193,15 @@ async function loadFromSupabase(): Promise<Dashboard | null> {
   const actions: Action[] = (actionRows ?? []).flatMap((row) => {
     const criterionId =
       (row.source_criterion_id as string | null) ?? actionKeyToCriterionId(String(row.action_key));
-    const gapRow = criterionId ? gapRowByCriterionId.get(criterionId) : undefined;
+    if (!criterionId) return [];
+    const gapRow = gapRowByCriterionId.get(criterionId);
     // 対応する調査項目が引けない行は出さない（見出しだけの空のカードを作らない）
     if (!gapRow) return [];
     return [
       {
         ...buildActionText(gapRow),
         id: String(row.id),
+        ref: criterionId,
         priority: row.priority as Action['priority'],
         difficulty: row.difficulty as Action['difficulty'],
         source: row.source as Action['source'],

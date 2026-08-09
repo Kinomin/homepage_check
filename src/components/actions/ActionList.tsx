@@ -137,7 +137,7 @@ export function ActionList({
                         })
                       }
                     >
-                      <span className="aid">{action.id}</span>
+                      <span className="aid">{action.ref}</span>
                       <span className="act-t">
                         {action.title}
                         <small>{action.summary}</small>

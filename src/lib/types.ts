@@ -273,6 +273,14 @@ export type ActionSource = (typeof ACTION_SOURCES)[number];
 
 export interface Action {
   id: string;
+  /**
+   * 画面に出す短い参照（調査項目のID。例：F6）。
+   *
+   * `id` は DB の UUID なので画面には出せない。以前はそのまま出していたため、
+   * 各アクションの先頭に `c0ab1f2c-6101-…` が並び、番号の意味が読めなかった。
+   * 02 欠落マップの該当行に戻れる値を出す。
+   */
+  ref: string;
   title: string;
   summary: string;
   priority: Priority;

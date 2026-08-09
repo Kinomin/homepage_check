@@ -390,7 +390,7 @@ export function ReportComposer({ data }: { data: ReportBlockData }) {
                   </tr>
                   {limit(data.highPriorityActions).map((action) => (
                     <tr key={action.id}>
-                      <td>{action.id}</td>
+                      <td>{action.ref}</td>
                       <td>{action.title}</td>
                       <td>{DIFFICULTY_LABEL[action.difficulty]}</td>
                       <td>{action.owner}</td>

@@ -40,16 +40,29 @@ export const CHECK_STATUS_MARK: Record<CheckStatus, string> = {
   unknown: '—',
 };
 
+/** 誰が直せるか。ここが分からないと点検結果を渡す先が決まらない。 */
+export const FIX_OWNERS = ['広報部', '制作会社'] as const;
+export type FixOwner = (typeof FIX_OWNERS)[number];
+
 export interface DiscoveryCheck {
   key: string;
   label: string;
   /** 現在の状況（数えた事実） */
   situation: string;
+  /** 検索した家庭から見て何が起きているか */
+  reader: string;
   /** 直すと何が起きるか */
   effect: string;
   status: CheckStatus;
-  /** 対応する改善アクション。無ければ制作会社への依頼事項 */
-  actionKey: string | null;
+  /**
+   * 誰が直せるか。
+   *
+   * 以前はここに改善アクションのID（AC-04 など）を入れていたが、
+   * それはプロトタイプのデモ用アクションの番号で、実データでは存在しない。
+   * 画面には解決しない参照だけが並んでいた。
+   * 点検結果を渡す先が分かることのほうが実務では役に立つ。
+   */
+  fixedBy: FixOwner;
   /** 「先に直す5つ」に入れるか */
   priority: boolean;
 }
@@ -129,12 +142,16 @@ export function analyzeDiscovery({ pages, schoolName }: DiscoveryInput): Discove
   const checks: DiscoveryCheck[] = [
     {
       key: 'briefing-event-schema',
-      label: '説明会の構造化データ',
+      label: '検索結果に説明会の日程を出す設定',
       situation:
         briefingPages.length === 0
-          ? '説明会ページが見つかりません'
-          : `${briefingWithEvent.length} / ${briefingPages.length}ページで設定`,
-      effect: '検索結果に日程が直接表示されるようになる',
+          ? '説明会のページが見つかりません'
+          : `説明会ページ${briefingPages.length}件のうち${briefingWithEvent.length}件に設定`,
+      reader:
+        briefingWithEvent.length === 0
+          ? '「学校名 説明会」で検索しても、日付は検索結果に出ず、ページを開くまで分かりません'
+          : '検索結果に日付が出るページと出ないページが混在しています',
+      effect: '検索結果に日付と申込先が直接並び、開かなくても次回の日程が分かる',
       status:
         briefingPages.length === 0
           ? 'unknown'
@@ -143,52 +160,69 @@ export function analyzeDiscovery({ pages, schoolName }: DiscoveryInput): Discove
             : briefingWithEvent.length < briefingPages.length
               ? 'warn'
               : 'ok',
-      actionKey: 'AC-04',
+      fixedBy: '制作会社',
       priority: briefingPages.length > 0 && briefingWithEvent.length < briefingPages.length,
     },
     {
       key: 'page-title',
-      label: 'ページ固有のtitle・説明文',
-      situation: `title が学校名のみ ${genericTitlePages.length}件 ／ 説明文なし ${missingDescriptionPages.length}件（全${htmlPages.length}ページ）`,
-      effect: '検索結果で何のページか判別できるようになる',
+      label: '検索結果に出る見出しと説明文',
+      situation: `学校名だけの見出し ${genericTitlePages.length}件 ／ 説明文なし ${missingDescriptionPages.length}件（全${htmlPages.length}ページ）`,
+      reader:
+        genericTitlePages.length > 0
+          ? '検索結果にどのページも同じ学校名で並ぶため、探している情報がどれか選べません'
+          : '検索結果でページの内容が判別できます',
+      effect: '検索結果を見た時点で、どのページに何が書いてあるか分かる',
       status:
         genericTitlePages.length === 0 && missingDescriptionPages.length === 0
           ? 'ok'
           : genericTitlePages.length > htmlPages.length / 4
             ? 'ng'
             : 'warn',
-      actionKey: 'AC-08',
+      // 見出しと説明文は本文の書き換えなので、多くの場合は広報部で直せる
+      fixedBy: '広報部',
       priority: genericTitlePages.length > 0 || missingDescriptionPages.length > 0,
     },
     {
       key: 'pdf-only',
-      label: '学費・要項がPDFのみ',
+      label: 'PDFでしか読めないページ',
       situation: `PDF ${pdfPages.length}件`,
-      effect: '検索対象になり、スマートフォンで読める',
+      reader:
+        pdfPages.length > 0
+          ? 'スマートフォンでは開くのに時間がかかり、文字も小さく、検索にも出にくい状態です'
+          : 'PDFに頼らずページ内で読めます',
+      effect: '検索に出るようになり、スマートフォンでもそのまま読める',
       status: pdfPages.length === 0 ? 'ok' : pdfPages.length > 5 ? 'ng' : 'warn',
-      actionKey: 'AC-07',
+      fixedBy: '広報部',
       priority: pdfPages.length > 0,
     },
     {
       key: 'briefing-url',
-      label: '説明会ページのURL',
+      label: '説明会ページのURLに年度が入っていないか',
       situation:
         yearInPathBriefing.length > 0
           ? `年度がURLに含まれる ${yearInPathBriefing.length}件`
-          : '年度によらない固定URL',
-      effect: '検索の評価が翌年に引き継がれる',
+          : '年度によらない固定のURL',
+      reader:
+        yearInPathBriefing.length > 0
+          ? '毎年ページを作り直すことになり、前年まで検索で積み上げた評価が引き継がれません'
+          : '同じURLを使い続けられています',
+      effect: '毎年URLを変えずに済み、前年までの検索での評価がそのまま続く',
+      fixedBy: '制作会社',
       status: yearInPathBriefing.length > 0 ? 'ng' : 'ok',
-      actionKey: 'AC-12',
       priority: yearInPathBriefing.length > 0,
     },
     {
       key: 'image-alt',
-      label: '画像の代替テキスト',
+      label: '写真の説明文（代替テキスト）',
       situation:
         totalImages === 0
           ? '画像が見つかりません'
           : `未設定 ${imagesWithoutAlt} / ${totalImages}点`,
-      effect: '画像検索から人が来る。音声読み上げにも対応できる',
+      reader:
+        imagesWithoutAlt > 0
+          ? '画像検索に出ず、読み上げソフトを使う人には何の写真か伝わりません'
+          : '写真の内容が検索エンジンと読み上げソフトに伝わります',
+      effect: '画像検索から人が来る。読み上げソフトにも対応できる',
       status:
         totalImages === 0
           ? 'unknown'
@@ -197,30 +231,37 @@ export function analyzeDiscovery({ pages, schoolName }: DiscoveryInput): Discove
             : imagesWithoutAlt > totalImages / 2
               ? 'ng'
               : 'warn',
-      actionKey: 'AC-15',
+      fixedBy: '広報部',
       priority: imagesWithoutAlt > 0,
     },
     {
       key: 'organization-schema',
-      label: '構造化データ EducationalOrganization',
+      label: '学校の基本情報を検索エンジンに伝える設定',
       situation: hasOrganizationSchema ? '設定済み' : '未設定',
-      effect: '学校の基本情報（所在地・電話・設立）が検索エンジンに伝わる',
+      reader: hasOrganizationSchema
+        ? '所在地や連絡先が検索エンジンに伝わっています'
+        : '所在地・電話・設立年を検索エンジンが読み取れていません',
+      effect: '学校名で検索したときの枠に、所在地や連絡先が表示される',
       status: hasOrganizationSchema ? 'ok' : 'ng',
-      actionKey: 'AC-04',
+      fixedBy: '制作会社',
       priority: false,
     },
     {
       key: 'heading',
-      label: '見出し構造（h1）',
+      label: '各ページの大見出し',
       situation: `未設定 ${noH1Pages.length}ページ ／ 複数設定 ${multipleH1Pages.length}ページ`,
-      effect: 'ページの主題が検索エンジンに伝わる',
+      reader:
+        noH1Pages.length > 0 || multipleH1Pages.length > 0
+          ? 'そのページが何について書かれたものか、検索エンジンが判断しにくい状態です'
+          : 'ページの主題が伝わる形になっています',
+      effect: 'そのページの主題が検索エンジンに正しく伝わる',
       status:
         noH1Pages.length === 0 && multipleH1Pages.length === 0
           ? 'ok'
           : noH1Pages.length > htmlPages.length / 4
             ? 'ng'
             : 'warn',
-      actionKey: null,
+      fixedBy: '制作会社',
       priority: false,
     },
   ];

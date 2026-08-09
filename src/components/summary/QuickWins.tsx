@@ -27,7 +27,7 @@ export function QuickWins({ actions }: { actions: Action[] }) {
             <div>
               <div className="t">{action.title}</div>
               <div className="d">
-                {action.id} ／ 難易度 {DIFFICULTY_LABEL[action.difficulty]} ・ {action.owner}
+                {action.ref} ／ 難易度 {DIFFICULTY_LABEL[action.difficulty]} ・ {action.owner}
               </div>
             </div>
             <div className="when">
