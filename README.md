@@ -157,6 +157,7 @@ npm run doctor      # どこまで設定できているかを点検する
 | `npm run scan -- --url https://example.ed.jp --name 学校名 --role self` | 1校の走査と判定を実行 |
 | `npm run scan:due` | 設定のスケジュールに従い、いま走査すべき学校を一覧表示（`-- --run` で実行） |
 | `POST /api/cron/scan` | 同じ処理を外部の cron から叩く口。`CRON_SECRET` による Bearer 認証。定期実行は GitHub Actions に置いている（サーバレスの実行時間上限を避けるため） |
+| `POST /api/scan/run-now` | 09設定画面の「今すぐ走査する」ボタンの入口。セッション認証（管理者のみ）。頻度設定を無視し、自分の組織の全校を対象にする |
 | `npm run build:demo` | サンプルデータ版を静的書き出し（GitHub Pages 用） |
 | `npm run vercel-build` | 本番ビルド。マイグレーション適用 → `next build`（Vercel が呼ぶ） |
 | `npm run keepalive` | データベースへの死活アクセス（Supabase の一時停止対策） |

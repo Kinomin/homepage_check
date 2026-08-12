@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { needsAttention, summarizeRun } from '../src/lib/scan/notify';
 import {
+  allSchoolsAsDue,
   runDueScans,
   selectDueSchools,
   type DueSchool,
@@ -117,6 +118,36 @@ describe('走査対象の判定', () => {
     const self = due.find((entry) => entry.school.id === 'self');
     expect(self?.due).toBe(false);
     expect(self?.nextScanAt).toEqual(fromJst(2026, 8, 10, 6));
+  });
+});
+
+describe('今すぐ走査する（09画面のボタン用）', () => {
+  it('頻度設定に関わらず全校を対象にする', () => {
+    const manual: OrgSettings = {
+      ...settings,
+      schedule: { ...settings.schedule, selfFrequency: 'manual', competitorFrequency: 'manual' },
+    };
+    const due = allSchoolsAsDue(schools, new Map(), manual);
+    // 「手動のみ」はこのボタンで動かすための設定なので、除外しない
+    expect(due.every((entry) => entry.due)).toBe(true);
+    expect(due).toHaveLength(schools.length);
+  });
+
+  it('自校と比較校で参照する頻度の欄は分けて記録する（表示用）', () => {
+    const mixed: OrgSettings = {
+      ...settings,
+      schedule: { ...settings.schedule, selfFrequency: 'weekly', competitorFrequency: 'monthly' },
+    };
+    const due = allSchoolsAsDue(schools, new Map(), mixed);
+    expect(due.find((e) => e.school.id === 'self')?.frequency).toBe('weekly');
+    expect(due.find((e) => e.school.id === 'rival')?.frequency).toBe('monthly');
+  });
+
+  it('前回走査を引き継ぐ（scan-writer 側の重複判定などに使えるように）', () => {
+    const last = new Map([['self', fromJst(2026, 8, 3, 6)]]);
+    const due = allSchoolsAsDue(schools, last, settings);
+    expect(due.find((e) => e.school.id === 'self')?.lastScanAt).toEqual(fromJst(2026, 8, 3, 6));
+    expect(due.find((e) => e.school.id === 'rival')?.lastScanAt).toBeNull();
   });
 });
 

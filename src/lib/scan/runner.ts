@@ -145,6 +145,31 @@ export function selectDueSchools(
   });
 }
 
+/**
+ * 09設定画面の「今すぐ走査する」ボタン用。頻度設定を無視し、渡した全校を対象にする。
+ * 「手動のみ」の学校も対象に含める——手動のみはまさにこのボタンで動かすための
+ * 設定であり、除外すると押しても何も起きないボタンになる（handoff.md 10章-5）。
+ */
+export function allSchoolsAsDue(
+  schools: School[],
+  lastScanBySchool: Map<string, Date>,
+  settings: OrgSettings,
+): DueSchool[] {
+  return schools.map((school) => {
+    const frequency =
+      school.role === 'self'
+        ? settings.schedule.selfFrequency
+        : settings.schedule.competitorFrequency;
+    return {
+      school,
+      frequency,
+      lastScanAt: lastScanBySchool.get(school.id) ?? null,
+      nextScanAt: null,
+      due: true,
+    };
+  });
+}
+
 export interface ScanRunEntry {
   schoolId: string;
   schoolName: string;
