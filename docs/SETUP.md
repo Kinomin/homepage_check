@@ -302,6 +302,11 @@ Authentication → URL Configuration を Vercel が発行したURLに変更す�
 
 ### 7-3. 走査を GitHub Actions に登録する
 
+> **現在、自動実行（週1回のスケジュール起動）は一時停止中。**
+> `.github/workflows/scan.yml` の `schedule:` をコメントアウトしてある。
+> 再開するにはそのコメントを外して push する。停止中も、Actions タブの
+> 「Run workflow」や 09設定画面の「今すぐ走査する」ボタンからの手動実行はできる。
+
 走査は Vercel の関数では回さない。31項目 × 校数のLLM判定とクロールを
 1リクエストで終わらせるには数十分かかり、関数の実行時間上限
 （Vercel Pro でも 800 秒）を超えるため。GitHub Actions なら1ジョブ数時間使える。
