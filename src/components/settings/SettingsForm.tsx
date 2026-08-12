@@ -59,6 +59,10 @@ export function SettingsForm({
   const [settings, setSettings] = useState<OrgSettings>(initialSettings);
   const [saving, startSaving] = useTransition();
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanMessage, setScanMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(
+    null,
+  );
 
   const estimate = estimateMonthlyJudgements(settings, competitorCount, criteriaCount);
   const baseline = estimateMonthlyJudgements(DEFAULT_SETTINGS, competitorCount, criteriaCount);
@@ -96,6 +100,36 @@ export function SettingsForm({
       });
       router.refresh();
     });
+  }
+
+  /**
+   * 「今すぐ走査する」。頻度設定を待たず、自分の組織の全校をいま走査する
+   * （/api/scan/run-now）。サーバレス関数の中で走査本体を実行するため、
+   * 応答までクロール＋LLM判定の時間ぶん待つ（数十秒〜数分）。
+   */
+  function runNow() {
+    setScanning(true);
+    setScanMessage(null);
+    fetch('/api/scan/run-now', { method: 'POST' })
+      .then(async (response) => {
+        const body = (await response.json().catch(() => null)) as {
+          error?: string;
+          summary?: string;
+        } | null;
+        if (!response.ok) {
+          setScanMessage({ kind: 'error', text: body?.error ?? '走査に失敗しました' });
+          return;
+        }
+        setScanMessage({ kind: 'ok', text: body?.summary ?? '走査が完了しました' });
+        router.refresh();
+      })
+      .catch(() => {
+        setScanMessage({
+          kind: 'error',
+          text: '通信に失敗しました。時間がかかりすぎて打ち切られた可能性があります（Vercel の実行時間上限）。GitHub Actions の Run workflow をお試しください。',
+        });
+      })
+      .finally(() => setScanning(false));
   }
 
   return (
@@ -204,6 +238,38 @@ export function SettingsForm({
               {cronEnabled ? '有効' : '無効（CRON_SECRET 未設定）'}
             </span>
           </div>
+
+          <div className="setting-row">
+            <div className="setting-label">
+              今すぐ走査する
+              <small>
+                頻度設定を待たず、自校・比較校をいま走査します。「手動のみ」に設定した学校も対象です。
+              </small>
+            </div>
+            <button
+              className="btn ghost"
+              onClick={runNow}
+              disabled={scanning || IS_STATIC_DEMO || !canManage}
+            >
+              {scanning ? '走査中…' : '今すぐ走査する'}
+            </button>
+          </div>
+          {scanning && (
+            <p className="setting-note">
+              クロールとAIによる判定が終わるまでこの画面を離れずお待ちください（数十秒〜数分）。
+              比較校が多い組織では、Vercel の実行時間の上限で途中打ち切りになることがあります。
+              その場合は GitHub の Actions タブから「走査（スケジュール実行）」→
+              「Run workflow」を実行してください。
+            </p>
+          )}
+          {scanMessage && (
+            <p
+              className="setting-note"
+              style={{ color: scanMessage.kind === 'error' ? 'var(--rose)' : 'var(--sage)' }}
+            >
+              {scanMessage.text}
+            </p>
+          )}
 
           <div className="setting-row">
             <div className="setting-label">
